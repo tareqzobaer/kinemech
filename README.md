@@ -1,3 +1,4 @@
+<img width="1200" height="630" alt="og-image" src="https://github.com/user-attachments/assets/daa9095f-6ac2-4d72-b3e6-505df45b2f10" />
 # KineMech
 
 A single-file, in-browser kinematics and kinetostatics solver for 2D
