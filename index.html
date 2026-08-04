@@ -1741,7 +1741,6 @@ function App() {
   const [polyView, setPolyView] = useState({ zoom: 1, panX: 0, panY: 0 });
   const polyRef = useRef(null);
   const polyXform = useRef(null);
-  const polySizeRef = useRef(null);
   const canvasRef = useRef(null);
   const xformRef = useRef(null);
   const canvasSizeRef = useRef(null);
@@ -3685,11 +3684,9 @@ function App() {
     const ctx = canvas.getContext("2d");
     const dpr = window.devicePixelRatio || 1;
     const W = canvas.clientWidth, H = canvas.clientHeight;
-    const lastSize = polySizeRef.current;
-    if (!lastSize || lastSize.W !== W || lastSize.H !== H || lastSize.dpr !== dpr) {
+    if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
       canvas.width = W * dpr;
       canvas.height = H * dpr;
-      polySizeRef.current = { W, H, dpr };
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
@@ -3768,6 +3765,13 @@ function App() {
       mny = Math.min(mny, p.y);
       mxy = Math.max(mxy, p.y);
     });
+    if (Math.max(mxx - mnx, mxy - mny) <= 1e-6) {
+      ctx.fillStyle = T.textMuted;
+      ctx.font = "600 12px ui-monospace,monospace";
+      ctx.fillText(`Every ${polyMode === "velocity" ? "velocity" : "acceleration"} in this pose is zero \u2014`, 16, 26);
+      ctx.fillText(`nothing is ${polyMode === "velocity" ? "moving" : "accelerating"} to diagram. Check the driver's rate on Drive.`, 16, 44);
+      return;
+    }
     const spanX = Math.max(mxx - mnx, 1e-6), spanY = Math.max(mxy - mny, 1e-6);
     const eps = 1e-6 * Math.max(spanX, spanY, 1);
     const pad = 40;

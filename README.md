@@ -1,4 +1,4 @@
-<img width="1200" height="630" alt="og-image" src="https://github.com/user-attachments/assets/87ad06eb-a400-49f9-b291-3ead7ef888d8" />
+![KineMech — planar mechanism analysis and synthesis](og-image.png)
 
 # KineMech
 
@@ -68,8 +68,4 @@ fixtures — each exercises a distinct part of the solver.
   reactions/torque/shaking force) exports to CSV.
 - **GIF export** — captures one drive cycle (mechanism + polygon panel if
   open) as an animated GIF.
-- **Distributable build** (optional) — `npm run build` precompiles the JSX
-  into `dist/MechanismAnalyzer.html`, skipping the ~1MB babel-standalone
-  fetch/JIT-compile on every load; `npm run build:offline` additionally
-  inlines React/ReactDOM/gif.js into `dist/MechanismAnalyzer.offline.html`, a
-  single file that runs with no network access at all.
+
