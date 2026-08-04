@@ -2972,7 +2972,7 @@ function App() {
       ctx.stroke();
       ctx.setLineDash([]);
     }
-    if (useSolved && traceRef.current.length > 1) {
+    if (useSolved && traceRef.current.length > 1 && !fbd) {
       ctx.strokeStyle = CT.trace;
       ctx.lineWidth = 1.6;
       ctx.beginPath();
@@ -4616,7 +4616,18 @@ function App() {
       loadPick,
       setLoadPick
     }
-  )), step === "solve" && React.createElement(React.Fragment, null, React.createElement(P, null, "The vector loop is solved by Newton\u2013Raphson for position, then differentiated for velocity and acceleration. Drag the slider or press play."), React.createElement("label", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 12 } }, React.createElement("span", { style: { fontSize: 12.5, color: T.textSub } }, "Trace"), React.createElement("select", { value: traceJoint || "", onChange: (e) => setTraceJoint(e.target.value || null), style: { width: 130 } }, React.createElement("option", { value: "" }, "off"), joints.filter((j) => !j.ground).map((j) => React.createElement("option", { key: j.id, value: j.id }, jointNames[j.id] || j.id)))), React.createElement("label", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 8 } }, React.createElement("span", { style: { fontSize: 12.5, color: T.textSub } }, "Full path"), React.createElement(
+  )), step === "solve" && React.createElement(React.Fragment, null, React.createElement(P, null, "The vector loop is solved by Newton\u2013Raphson for position, then differentiated for velocity and acceleration. Drag the slider or press play."), React.createElement("label", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 12 } }, React.createElement("span", { style: { fontSize: 12.5, color: T.textSub } }, "Trace"), React.createElement(
+    "select",
+    {
+      value: traceJoint || "",
+      onChange: (e) => setTraceJoint(e.target.value || null),
+      disabled: fbd,
+      title: fbd ? "Hidden while FBD is showing \u2014 the exploded view already shows link motion" : void 0,
+      style: { width: 130 }
+    },
+    React.createElement("option", { value: "" }, "off"),
+    joints.filter((j) => !j.ground).map((j) => React.createElement("option", { key: j.id, value: j.id }, jointNames[j.id] || j.id))
+  )), React.createElement("label", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 8 } }, React.createElement("span", { style: { fontSize: 12.5, color: T.textSub } }, "Full path"), React.createElement(
     "button",
     {
       className: "btn" + (showFullPath ? " on" : ""),
