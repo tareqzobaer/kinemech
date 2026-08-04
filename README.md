@@ -1,4 +1,4 @@
-<img width="1200" height="630" alt="og-image" src="https://github.com/user-attachments/assets/daa9095f-6ac2-4d72-b3e6-505df45b2f10" />
+<img width="1200" height="630" alt="og-image" src="https://github.com/user-attachments/assets/87ad06eb-a400-49f9-b291-3ead7ef888d8" />
 
 # KineMech
 
