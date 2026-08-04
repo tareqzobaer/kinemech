@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>KineMech - Planar Mechanism Analysis &amp; Synthesis</title>
 <meta name="description" content="Build a planar linkage from joints and links, then solve its position, velocity, and acceleration — four-bars, slider-cranks, and pin-in-slot mechanisms with Coriolis terms." />
-<meta name="google-site-verification" content="rKMd8ppZYCi6sYhX105z776Z0y5hv6T197yVgutcgCk" />
+<meta name="google-site-verification" content="5Q8MmV4Y84WZRRzA8PxL0rRwqDvpmAcBmFDrot7G5WA" />
 <link rel="canonical" href="https://kinemech.vercel.app/" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="KineMech" />
@@ -89,12 +89,13 @@
   @keyframes stepFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
   .step-fade { animation: stepFadeIn .22s ease both; }
 
-  #boot { display: flex; flex-direction: column; align-items: center; justify-content: center;
+  #boot { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
     height: 100%; gap: 14px; font: 13px ui-monospace, SFMono-Regular, Menlo, monospace;
     color: #5a6882; text-align: center; padding: 24px; box-sizing: border-box; }
 
   #boot .boot-logo { width: 48px; height: 48px; display: block; }
   #boot .boot-title { font-size: 15px; font-weight: 700; letter-spacing: 2px; color: #2f9e6e; }
+  #boot .boot-subtitle { font-size: 11px; letter-spacing: 0.5px; color: #7a8598; margin-top: -8px; }
   #boot .boot-detail { max-width: 42em; line-height: 1.5; }
   #boot .boot-detail b { color: #1a2236; }
   @keyframes bootSpin { to { transform: rotate(360deg); } }
@@ -102,6 +103,7 @@
     border: 2.5px solid #dde3ee; border-top-color: #2f9e6e; animation: bootSpin .8s linear infinite; }
   #boot.boot-failed .boot-spinner { display: none; }
   #boot.boot-failed .boot-title { color: #c0344d; }
+  #boot .boot-copyright { position: absolute; bottom: 16px; font-size: 10px; letter-spacing: 0.3px; color: #9aa5ba; }
 
 </style>
 </head>
@@ -117,8 +119,10 @@
     <circle cx="17.5" cy="19.5" r="1.5" fill="#1a2236" />
   </svg>
   <div class="boot-title">KINEMECH</div>
+  <div class="boot-subtitle">Planar Mechanism Analysis &amp; Synthesis</div>
   <div class="boot-spinner"></div>
   <div class="boot-detail">Loading…</div>
+  <div class="boot-copyright">© Dr. Tareq Zobaer | 2026</div>
 </div></div>
 <noscript>
   <div style="font:14px ui-monospace,monospace;color:#1a2236;padding:32px;text-align:center;line-height:1.6">
@@ -4841,10 +4845,10 @@ function App() {
       }
     },
     "build up"
-  ), polyBuildOn && React.createElement(React.Fragment, null, React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyBuildStep((s) => Math.max(0, s - 1)), disabled: polyBuildStep <= 0 }, "\u25C2"), React.createElement("span", { style: { ...S.zoomLbl, minWidth: 30 } }, polyBuildStep, "/", polyBuildMax), React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyBuildStep((s) => Math.min(polyBuildMax, s + 1)), disabled: polyBuildStep >= polyBuildMax }, "\u25B8"))), React.createElement("div", { style: S.zoomBox }, React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyView((v) => ({ ...v, zoom: Math.min(40, v.zoom * 1.25) })) }, "+"), React.createElement("span", { style: S.zoomLbl }, (polyView.zoom * 100).toFixed(polyView.zoom < 0.1 ? 1 : 0), "%"), React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyView((v) => ({ ...v, zoom: Math.max(0.02, v.zoom * 0.8) })) }, "\u2212"), React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyView({ zoom: 1, panX: 0, panY: 0 }) }, "\u27F3"), React.createElement("button", { style: { ...S.zoomBtn, width: "auto", padding: "0 8px", fontSize: 11 }, onClick: () => setPolyView({ zoom: 1, panX: 0, panY: 0 }) }, "Fit")))), step === "solve" && React.createElement("div", { style: S.controls }, React.createElement("button", { className: "btn pri", onClick: () => setPlaying((p) => {
+  ), polyBuildOn && React.createElement(React.Fragment, null, React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyBuildStep((s) => Math.max(0, s - 1)), disabled: polyBuildStep <= 0 }, "\u25C2"), React.createElement("span", { style: { ...S.zoomLbl, minWidth: 30 } }, polyBuildStep, "/", polyBuildMax), React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyBuildStep((s) => Math.min(polyBuildMax, s + 1)), disabled: polyBuildStep >= polyBuildMax }, "\u25B8"))), React.createElement("div", { style: S.zoomBox }, React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyView((v) => ({ ...v, zoom: Math.min(40, v.zoom * 1.25) })) }, "+"), React.createElement("span", { style: S.zoomLbl }, (polyView.zoom * 100).toFixed(polyView.zoom < 0.1 ? 1 : 0), "%"), React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyView((v) => ({ ...v, zoom: Math.max(0.02, v.zoom * 0.8) })) }, "\u2212"), React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyView({ zoom: 1, panX: 0, panY: 0 }) }, "\u27F3"), React.createElement("button", { style: { ...S.zoomBtn, width: "auto", padding: "0 8px", fontSize: 11 }, onClick: () => setPolyView({ zoom: 1, panX: 0, panY: 0 }) }, "Fit")))), step === "solve" && React.createElement("div", { style: S.controls }, React.createElement("button", { className: "btn", title: playing ? "Pause" : "Play", onClick: () => setPlaying((p) => {
     if (!p) dirRef.current = 1;
     return !p;
-  }), disabled: !solution.ok }, React.createElement(IconText, { icon: playing ? "pause" : "play" }, playing ? "Pause" : "Play")), driverKind === "rotation" ? React.createElement("div", { style: { flex: 1, display: "flex", alignItems: "center", gap: 10 } }, React.createElement("span", { style: S.tick }, "\u03B8\u2082"), React.createElement(
+  }), disabled: !solution.ok }, React.createElement(Icon, { name: playing ? "pause" : "play" })), driverKind === "rotation" ? React.createElement("div", { style: { flex: 1, display: "flex", alignItems: "center", gap: 10 } }, React.createElement("span", { style: S.tick }, "\u03B8\u2082"), React.createElement(
     "input",
     {
       type: "range",
