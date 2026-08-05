@@ -5,8 +5,9 @@
 A single-file, in-browser kinematics and kinetostatics solver for 2D
 pin/slider mechanisms. Build a linkage by placing joints and links, drive it,
 and get exact position, velocity, and acceleration at every instant —
-including non-Grashof rockers, multi-loop mechanisms, and ternary links. No
-install, no build step: open `MechanismAnalyzer.html` in a browser.
+including non-Grashof rockers, multi-loop mechanisms, and ternary links.
+
+![KineMech example](radial_engine.gif)
 
 ## What it solves
 
