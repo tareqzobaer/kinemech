@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#ffffff" />
+  <!-- app icon tile, scaled up from the favicon/BrandMark's own 24x24 viewBox
+       so this stays a single source of truth in spirit -->
+  <g transform="translate(120,165) scale(12.5)">
+    <rect x="0.5" y="0.5" width="23" height="23" rx="4.5" fill="#ffffff" stroke="#c8d0de" stroke-width="1" />
+    <path d="M7 4.5 L7 19.5" stroke="#46557a" stroke-width="2.6" stroke-linecap="round" fill="none" />
+    <path d="M7 12.5 L17.5 5.5" stroke="#2f9e6e" stroke-width="2.6" stroke-linecap="round" fill="none" />
+    <path d="M7 12.5 L17.5 19.5" stroke="#3a7fc8" stroke-width="2.6" stroke-linecap="round" fill="none" />
+    <circle cx="7" cy="12.5" r="2.1" fill="#ffffff" stroke="#1a2236" stroke-width="1.5" />
+    <circle cx="17.5" cy="5.5" r="1.5" fill="#1a2236" />
+    <circle cx="17.5" cy="19.5" r="1.5" fill="#1a2236" />
+  </g>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <text x="480" y="300" font-size="84" font-weight="800" letter-spacing="3" fill="#1a2236">KINEMECH</text>
+    <text x="482" y="350" font-size="30" font-weight="500" fill="#5a6882">Planar Mechanism Analysis &amp; Synthesis</text>
+    <!-- textLength+lengthAdjust hard-clamps this line to the safe width (canvas
+         edge minus margin) regardless of which fallback font a given scraper's
+         renderer substitutes for the ui-monospace stack — that substitution is
+         exactly what silently overflowed the canvas last time, so length is
+         pinned rather than estimated from character count. -->
+    <text x="482" y="396" font-size="20" font-weight="600" fill="#2f9e6e" textLength="650" lengthAdjust="spacingAndGlyphs">Multi-loop Linkages &#183; Path Generation &#183; Balancing</text>
+  </g>
+</svg>

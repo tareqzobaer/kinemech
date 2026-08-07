@@ -1,0 +1,17 @@
+<!-- Same dyad-K mark as the inline data-URI favicon in src/index.html and the
+     boot screen there — kept as a standalone file purely so kinemech.app
+     has a favicon at a real, independently-fetchable URL. Google's favicon
+     crawler for search results fetches the <link rel="icon"> href as its own
+     HTTP request; a data: URI has nothing to fetch, which is why the deployed
+     page's icon wasn't showing up in search results even though it renders
+     fine as a browser tab icon. Redraw this in step with the inline copy if
+     the mark ever changes. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <rect x="0.5" y="0.5" width="23" height="23" rx="4.5" fill="#ffffff" stroke="#c8d0de" />
+  <path d="M7 4.5 L7 19.5" stroke="#46557a" stroke-width="2.6" stroke-linecap="round" fill="none" />
+  <path d="M7 12.5 L17.5 5.5" stroke="#2f9e6e" stroke-width="2.6" stroke-linecap="round" fill="none" />
+  <path d="M7 12.5 L17.5 19.5" stroke="#3a7fc8" stroke-width="2.6" stroke-linecap="round" fill="none" />
+  <circle cx="7" cy="12.5" r="2.1" fill="#ffffff" stroke="#1a2236" stroke-width="1.5" />
+  <circle cx="17.5" cy="5.5" r="1.5" fill="#1a2236" />
+  <circle cx="17.5" cy="19.5" r="1.5" fill="#1a2236" />
+</svg>
