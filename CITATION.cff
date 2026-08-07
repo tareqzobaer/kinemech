@@ -4,8 +4,8 @@ authors:
   - family-names: "Tareq"
     given-names: "Zobaer"
     orcid: "https://orcid.org/0000-0002-3907-7203"
-title: "My Awesome Project Name"
-version: "1.0.4"
-doi: "10.5281/zenodo.1234567"
+title: "KineMech"
+version: "1.0.0"
+doi: "10.5281/zenodo.21843047"
 date-released: 2026-08-08
 url: "https://github.com"
