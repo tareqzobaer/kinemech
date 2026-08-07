@@ -7,11 +7,11 @@
 Two in-browser tools for 2D pin/slider mechanisms, sharing one codebase.
 
 The **analyzer** builds a linkage from joints and links, drives it, and gives
-exact position, velocity, and acceleration at every instant — including
+exact position, velocity, and acceleration at every instant, including
 non-Grashof rockers, multi-loop mechanisms, and ternary links. The
 **synthesizer** goes the other way: prescribe coupler positions, a path to
 trace, a function to generate, or a quick-return time ratio, and it finds the
-four-bar or offset slider-crank that does it — then hands that linkage straight
+four-bar or offset slider-crank that does it, then transfers that linkage
 to the analyzer. 
 
 ![KineMech example](radial_engine.gif)
