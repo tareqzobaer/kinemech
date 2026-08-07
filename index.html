@@ -7532,7 +7532,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       },
       React.createElement("span", { style: { opacity: 0.6 } }, i + 1),
       STEP_SHORT[s]
-    ))), React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", flex: "0 0 auto", ...compact ? { marginLeft: "auto" } : null } }, !compact && !showLaunch && React.createElement("div", { style: { width: 1, alignSelf: "stretch", background: T.border, marginLeft: 6 } }), React.createElement(
+    ))), React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", flex: "0 0 auto", ...compact ? { marginLeft: "auto" } : null } }, !compact && !showLaunch && React.createElement("div", { style: { width: 1, height: 22, alignSelf: "center", flexShrink: 0, background: T.border, marginLeft: 6 } }), React.createElement(
       "button",
       {
         className: "btn",
@@ -7552,7 +7552,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         onClick: redo
       },
       "\u21B7"
-    ), React.createElement("div", { style: { width: 1, alignSelf: "stretch", background: T.border, margin: "0 2px" } }), React.createElement("div", { ref: fileMenuRef, style: { position: "relative" } }, React.createElement("button", { className: "btn" + (showFileMenu ? " on" : ""), title: "Load / Save / Reset", onClick: () => setShowFileMenu((v) => !v) }, React.createElement(Icon, { name: "more" })), showFileMenu && React.createElement("div", { style: {
+    ), React.createElement("div", { style: { width: 1, height: 22, alignSelf: "center", flexShrink: 0, background: T.border, margin: "0 2px" } }), React.createElement("div", { ref: fileMenuRef, style: { position: "relative" } }, React.createElement("button", { className: "btn" + (showFileMenu ? " on" : ""), title: "Load / Save / Reset", onClick: () => setShowFileMenu((v) => !v) }, React.createElement(Icon, { name: "more" })), showFileMenu && React.createElement("div", { style: {
       position: "absolute",
       top: "calc(100% + 6px)",
       right: 0,
@@ -10020,7 +10020,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const clean = matched ? !d.branch : !d.circuit && !d.branch && !d.order;
     const Defect = ({ bad, label, note }) => React.createElement("div", { style: { padding: "4px 0", borderTop: `1px solid ${T.rowBorder}` } }, React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 12 } }, React.createElement("span", { style: { color: T.textSub } }, label), React.createElement("span", { style: { color: bad ? T.red : T.resVal, fontWeight: 600 } }, bad ? "present" : "clear")), bad && React.createElement("div", { style: { fontSize: 10.5, color: T.textSub, lineHeight: 1.4, marginTop: 2 } }, note));
     const dev = r.deviation;
-    const devRow = dev && isFinite(dev.rmsFrac) && React.createElement(React.Fragment, null, React.createElement("div", { style: S.resGroup }, matched ? "Fit to target" : inferred ? "Deviation (inferred ref.)" : "Deviation"), React.createElement("div", { style: { ...S.resCard, borderColor: dev.maxFrac < 0.02 ? T.accent : dev.maxFrac < 0.08 ? T.accentBlue : T.red } }, React.createElement(Row, { T, k: "RMS", v: `${fmt(dev.rms, 4)}  (${fmt(100 * dev.rmsFrac, 2)}% of span)` }), React.createElement(Row, { T, k: "Max", v: `${fmt(dev.max, 4)}  (${fmt(100 * dev.maxFrac, 2)}% of span)` }), targetDoc && React.createElement(Row, { T, k: "Measured at", v: `${targetDoc.pts.length} points` }), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, lineHeight: 1.4, marginTop: 4 } }, matched ? timing && r.dir ? "Each target compared against the coupler point at its own prescribed crank angle." : "Distance from each target to the nearest place on the coupler curve. Shape only \u2014 it does not constrain when the point gets there, and the curve may wander elsewhere too, so look at the drawing." : inferred ? "Measured against an inferred spline through the precision points, not a specification. Tells you how far the curve strays between the points it hits exactly." : "Distance from each reference point to the coupler curve.")));
+    const devRow = dev && isFinite(dev.rmsFrac) && React.createElement(React.Fragment, null, React.createElement("div", { style: S.resGroup }, matched ? "Fit to target" : inferred ? "Deviation (inferred ref.)" : "Deviation"), React.createElement("div", { style: { ...S.resCard, borderColor: inferred ? T.accentBlue : dev.maxFrac < 0.02 ? T.accent : dev.maxFrac < 0.08 ? T.accentBlue : T.red } }, React.createElement(Row, { T, k: "RMS", v: `${fmt(dev.rms, 4)}  (${fmt(100 * dev.rmsFrac, 2)}% of span)` }), React.createElement(Row, { T, k: "Max", v: `${fmt(dev.max, 4)}  (${fmt(100 * dev.maxFrac, 2)}% of span)` }), targetDoc && React.createElement(Row, { T, k: "Measured at", v: `${targetDoc.pts.length} points` }), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, lineHeight: 1.4, marginTop: 4 } }, matched ? timing && r.dir ? "Each target compared against the coupler point at its own prescribed crank angle." : "Distance from each target to the nearest place on the coupler curve. Shape only \u2014 it does not constrain when the point gets there, and the curve may wander elsewhere too, so look at the drawing." : inferred ? "Measured against an inferred spline through the precision points, not a specification. Tells you how far the curve strays between the points it hits exactly." : "Distance from each reference point to the coupler curve.")));
     return React.createElement(React.Fragment, null, matched && devRow, React.createElement("div", { style: S.resGroup }, "Defects"), React.createElement("div", { style: { ...S.resCard, borderColor: clean ? T.accent : T.red, paddingTop: 2 } }, !matched && React.createElement(Defect, { bad: d.circuit, label: "Circuit", note: "Some points are only reached on the mirrored assembly \u2014 the mechanism would have to be taken apart and rebuilt to visit them all." }), React.createElement(Defect, { bad: d.branch, label: "Branch", note: matched ? "The target closes, but this linkage covers it in two disjoint arcs \u2014 it would have to be dismantled halfway round." : "The crank can't be turned from one precision point to another without passing a dead position." }), !matched && React.createElement(Defect, { bad: d.order, label: "Order", note: "The coupler point does pass through every point, but not in the sequence they're numbered in." }), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, lineHeight: 1.4, marginTop: 6 } }, clean ? matched ? "One continuous crank motion covers the whole target." : "One continuous crank motion visits every precision point, in order." : matched ? "Try matching again, or mark the target open if a rocker is acceptable." : "Try Solve free choices \u2014 these are exactly what it searches to eliminate.")), !matched && React.createElement(React.Fragment, null, React.createElement("div", { style: S.resGroup }, "Precision points"), React.createElement("div", { style: S.resCard }, r.Ps.map((p, i) => React.createElement(
       Row,
       {
@@ -12152,7 +12152,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         }
       },
       MODES[m]
-    )), saveMsg && React.createElement("span", { style: { fontSize: 11, color: T.resVal, fontWeight: 600, marginLeft: 8 } }, saveMsg), React.createElement("div", { style: { width: 1, height: 22, alignSelf: "center", flexShrink: 0, background: T.border, margin: "0 2px" } }), React.createElement("div", { ref: menuRef, style: { position: "relative" } }, React.createElement(
+    )), React.createElement("div", { style: { width: 1, height: 22, alignSelf: "center", flexShrink: 0, background: T.border, margin: "0 2px" } }), React.createElement("div", { ref: menuRef, style: { position: "relative" } }, React.createElement(
       "button",
       {
         className: "btn" + (showMenu ? " on" : ""),
@@ -12615,7 +12615,24 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         "aria-label": "Snap to grid"
       },
       React.createElement(GridIcon, null)
-    )), React.createElement("div", { style: S.zoomBox }, React.createElement("button", { style: S.zoomBtn, onClick: () => zoomBtn(1 / 1.2) }, "\u2212"), React.createElement("span", { style: S.zoomLbl }, Math.round(view.zoom * 100), "%"), React.createElement("button", { style: S.zoomBtn, onClick: () => zoomBtn(1.2) }, "+"), React.createElement("button", { style: { ...S.zoomBtn, width: "auto", padding: "0 7px", fontSize: 10 }, onClick: resetView }, "fit"))), React.createElement("div", { style: S.controls }, React.createElement("button", { className: "btn", title: playing ? "Pause" : "Play", onClick: () => setPlaying((p) => {
+    )), React.createElement("div", { style: S.zoomBox }, React.createElement("button", { style: S.zoomBtn, onClick: () => zoomBtn(1 / 1.2) }, "\u2212"), React.createElement("span", { style: S.zoomLbl }, Math.round(view.zoom * 100), "%"), React.createElement("button", { style: S.zoomBtn, onClick: () => zoomBtn(1.2) }, "+"), React.createElement("button", { style: { ...S.zoomBtn, width: "auto", padding: "0 7px", fontSize: 10 }, onClick: resetView }, "fit")), saveMsg && React.createElement("div", { style: {
+      position: "absolute",
+      top: 10,
+      right: 10,
+      maxWidth: "60%",
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.resVal,
+      textAlign: "right",
+      padding: "7px 12px",
+      borderRadius: 8,
+      pointerEvents: "none",
+      background: T.glassBg,
+      border: `1px solid ${T.glassBorder}`,
+      backdropFilter: "blur(10px)",
+      WebkitBackdropFilter: "blur(10px)",
+      boxShadow: "0 4px 18px rgba(0,0,0,0.14)"
+    } }, saveMsg)), React.createElement("div", { style: S.controls }, React.createElement("button", { className: "btn", title: playing ? "Pause" : "Play", onClick: () => setPlaying((p) => {
       if (!p) dirRef.current = 1;
       return !p;
     }), disabled: !activeResult.ok }, playing ? React.createElement(PauseIcon, null) : React.createElement(PlayIcon, null)), React.createElement("span", { style: S.tick }, "\u03B8\u2082"), React.createElement(

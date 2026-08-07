@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21843047.svg)](https://doi.org/10.5281/zenodo.21843047)
+
 ![KineMech — planar mechanism analysis and synthesis](og-image.png)
 
 # KineMech
@@ -143,4 +145,5 @@ regression fixtures — each exercises a distinct part of the solver.
   reactions/torque/shaking force) exports to CSV.
 - **GIF export** — captures one drive cycle (mechanism + polygon panel if
   open) as an animated GIF.
+  
 
