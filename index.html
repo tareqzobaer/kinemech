@@ -4,11 +4,22 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>KineMech - Planar Mechanism Analysis &amp; Synthesis</title>
-<meta name="description" content="Build a planar linkage — four-bars, slider-cranks, and pin-in-slot mechanisms — then analyze its kinematics and kinetostatic forces, or synthesize new linkage designs. Free, runs in your browser." />
+<meta name="description" content="Build and analyze planar linkages online. Solve position, velocity, acceleration, and kinetostatic forces, or synthesize new four-bar and slider-crank designs." />
+<meta name="keywords" content="kinemech, planar mechanism, linkage synthesis, mechanism synthesis, four-bar linkage simulator, slider-crank analysis, Coriolis acceleration, kinetostatics" />
+<meta name="author" content="Dr. Tareq Zobaer" />
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+<meta name="theme-color" content="#2f9e6e" />
+
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
+<link rel="preconnect" href="https://c.statcounter.com" />
+<link rel="dns-prefetch" href="https://c.statcounter.com" />
+
 <meta name="google-site-verification" content="qie011HmbaRGD3-IDlK3sYW7EF2hwA-6cCaneJ-81jE" />
 <link rel="canonical" href="https://kinemech.app/" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="KineMech" />
+<meta property="og:locale" content="en_US" />
 <meta property="og:title" content="KineMech - Planar Mechanism Analysis &amp; Synthesis" />
 <meta property="og:description" content="Build a planar linkage — four-bars, slider-cranks, and pin-in-slot mechanisms — then analyze its kinematics and kinetostatic forces, or synthesize new linkage designs. Free, runs in your browser." />
 <meta property="og:url" content="https://kinemech.app/" />
@@ -28,15 +39,20 @@
   "alternateName": "Planar Mechanism Analyzer",
   "description": "Build a planar linkage — four-bars, slider-cranks, and pin-in-slot mechanisms — then analyze its kinematics and kinetostatic forces, or synthesize new linkage designs. Free, runs in your browser.",
   "url": "https://kinemech.app/",
-  "applicationCategory": "DesignApplication",
+  "applicationCategory": "EngineeringApplication",
+  "applicationSubCategory": "DesignApplication",
   "operatingSystem": "Any (runs in-browser)",
   "browserRequirements": "Requires JavaScript",
+  "author": {
+    "@type": "Person",
+    "name": "Dr. Tareq Zobaer"
+  },
   "featureList": [
     "Build four-bar, slider-crank, and pin-in-slot mechanisms from joints and links",
     "Position, velocity, and acceleration analysis with Coriolis terms",
     "Kinetostatic force analysis: joint reactions, driving torque/force, shaking force and moment, free-body diagrams",
-    "Four-bar synthesis by motion generation and function generation",
-    "Quick-return slider-crank synthesis with Grashof and transmission-angle checks",
+    "Four-bar synthesis by motion, path, and function generation with Grashof and transmission-angle checks",
+    "Quick-return slider-crank synthesis",
     "Live mechanism animation and GIF export"
   ],
   "offers": {
@@ -146,7 +162,12 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
 </style>
 </head>
 <body>
-<div id="root"><div id="boot">
+<div id="root">
+<header style="display:none;">
+    <h1>KineMech - Planar Mechanism Analysis & Synthesis</h1>
+    <p>A web-based interactive tool for mechanical engineers, students, and researchers to analyze and synthesize planar linkages.</p>
+  </header>
+<div id="boot">
   <svg class="boot-logo" viewBox="0 0 24 24" aria-hidden="true">
     <rect x="0.5" y="0.5" width="23" height="23" rx="4.5" fill="#ffffff" stroke="#c8d0de" />
     <path d="M7 4.5 L7 19.5" stroke="#46557a" stroke-width="2.6" stroke-linecap="round" fill="none" />
@@ -1767,6 +1788,46 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       "View on GitHub \u2197"
     ), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, textAlign: "center" } }, "\xA9 Dr. Tareq Zobaer | 2026")));
   };
+  var RotateDeviceIcon = ({ size = 34 }) => React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.7", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true" }, React.createElement("rect", { x: "7", y: "2", width: "9", height: "15", rx: "2" }), React.createElement("path", { d: "M10.5 14.3h2" }), React.createElement("path", { d: "M21 10a7 7 0 1 1-2.7-5.5" }), React.createElement("path", { d: "M21 2.5v5h-5" }));
+  var RotateModal = ({ onClose }) => {
+    const T = useTheme();
+    return React.createElement("div", { onClick: onClose, style: {
+      position: "fixed",
+      inset: 0,
+      zIndex: 50,
+      background: "rgba(10,14,22,0.55)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 16
+    } }, React.createElement("div", { onClick: (e) => e.stopPropagation(), style: {
+      background: T.panel,
+      border: `1px solid ${T.border2}`,
+      borderRadius: 10,
+      boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+      padding: 24,
+      maxWidth: 320,
+      width: "100%",
+      position: "relative",
+      textAlign: "center"
+    } }, React.createElement("button", { onClick: onClose, title: "Close", style: {
+      position: "absolute",
+      top: 10,
+      right: 10,
+      width: 26,
+      height: 26,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 0,
+      border: "none",
+      background: "transparent",
+      color: T.textMuted,
+      cursor: "pointer",
+      fontSize: 16,
+      lineHeight: 1
+    } }, "\xD7"), React.createElement("div", { style: { color: T.accent, marginBottom: 10 } }, React.createElement(RotateDeviceIcon, null)), React.createElement("div", { style: { font: "800 14px ui-monospace,monospace", color: T.text, letterSpacing: 0.6, marginBottom: 8 } }, "Turn your device"), React.createElement("p", { style: { fontSize: 12.5, color: T.textSub, lineHeight: 1.5, margin: "0 0 18px" } }, "The canvas and both side panels want more width than portrait gives you. Turn your phone sideways for the full workspace and steadier dragging and zooming."), React.createElement("button", { className: "btn pri", style: { width: "100%" }, onClick: onClose }, "Continue in portrait")));
+  };
   var HELP_STEPS = [
     { t: "Place joints", d: "Choose a joint type, then click the canvas to drop it. A slider needs two clicks \u2014 the first places it, the second sets the guide line it slides along. A gear also needs two clicks: the first places its always-fixed axis, the second roughly sets its pitch radius. Trace over an imported image to match a real mechanism." },
     { t: "Connect links", d: "Pick a connection type. Rigid (default): click 2-4 joints in sequence, then Finish link. Linear: click 2 joints to connect them with a spring/damper \u2014 commits immediately. Torsional: pick two links (or a link and ground) from the panel \u2014 no clicking. Connect every joint into the mechanism." },
@@ -2934,9 +2995,99 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   };
 
   // ============================================================================
+  //  TAB LOCK
+  // ============================================================================
+  var HEARTBEAT_MS = 2e3;
+  var STALE_MS = HEARTBEAT_MS * 3;
+  var tabId = (() => {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+  })();
+  var keyFor = (scope) => `${scope}:tablock`;
+  var readLock = (scope) => {
+    try {
+      return JSON.parse(localStorage.getItem(keyFor(scope)));
+    } catch {
+      return null;
+    }
+  };
+  var writeLock = (scope) => {
+    try {
+      localStorage.setItem(keyFor(scope), JSON.stringify({ id: tabId, ts: Date.now() }));
+    } catch {
+    }
+  };
+  var clearLock = (scope) => {
+    const cur = readLock(scope);
+    if (cur && cur.id === tabId) {
+      try {
+        localStorage.removeItem(keyFor(scope));
+      } catch {
+      }
+    }
+  };
+  var locks = new Map();
+  var notify = (scope) => {
+    const l = locks.get(scope);
+    if (l) l.listeners.forEach((fn) => fn(l.isOwner));
+  };
+  var tryClaim = (scope) => {
+    const l = locks.get(scope);
+    const cur = readLock(scope);
+    const freeOrStale = !cur || Date.now() - cur.ts > STALE_MS || cur.id === tabId;
+    if (!freeOrStale) {
+      l.isOwner = false;
+      notify(scope);
+      return;
+    }
+    writeLock(scope);
+    setTimeout(() => {
+      const after = readLock(scope);
+      l.isOwner = !!after && after.id === tabId;
+      notify(scope);
+    }, 60 + Math.random() * 60);
+  };
+  var initTabLock = (scope) => {
+    if (locks.has(scope)) return;
+    const l = { isOwner: false, listeners: new Set() };
+    locks.set(scope, l);
+    tryClaim(scope);
+    setInterval(() => {
+      if (l.isOwner) writeLock(scope);
+      else tryClaim(scope);
+    }, HEARTBEAT_MS);
+    window.addEventListener("storage", (e) => {
+      if (e.key === keyFor(scope)) tryClaim(scope);
+    });
+    window.addEventListener("pagehide", () => clearLock(scope));
+  };
+  var isTabOwner = (scope) => locks.get(scope)?.isOwner ?? true;
+  var claimTab = (scope) => {
+    if (!locks.has(scope)) return;
+    writeLock(scope);
+    locks.get(scope).isOwner = true;
+    notify(scope);
+  };
+  var subscribeTabLock = (scope, fn) => {
+    const l = locks.get(scope);
+    if (!l) {
+      fn(true);
+      return () => {
+      };
+    }
+    l.listeners.add(fn);
+    fn(l.isOwner);
+    return () => l.listeners.delete(fn);
+  };
+
+  // ============================================================================
   //  AUTOSAVE
   // ============================================================================
   var AUTOSAVE_KEY = "mechanism-analyzer:autosave";
+  var TAB_SCOPE = "mechanism-analyzer";
   var readAutosave = () => {
     try {
       const raw = localStorage.getItem(AUTOSAVE_KEY);
@@ -2948,6 +3099,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     }
   };
   var writeAutosave = (data) => {
+    if (!isTabOwner(TAB_SCOPE)) return false;
     try {
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
       return true;
@@ -4149,6 +4301,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   function App({ dark, setDark, onSynthesize = null, onSendPath = null, incoming = null }) {
     const narrow = useMedia("(max-width: 900px)");
     const compact = useMedia("(max-width: 640px)");
+    const portrait = useMedia("(orientation: portrait)");
     const [leftPanelOverride, setLeftPanelOverride] = useState(null);
     const [rightPanelOverride, setRightPanelOverride] = useState(null);
     const leftPanelUserOpen = leftPanelOverride ?? !narrow;
@@ -4208,6 +4361,16 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       window.addEventListener("keydown", onEsc);
       return () => window.removeEventListener("keydown", onEsc);
     }, [showHelp]);
+    const [rotateDismissed, setRotateDismissed] = useState(false);
+    const suggestRotate = compact && portrait && !rotateDismissed;
+    useEffect(() => {
+      if (!suggestRotate) return;
+      const onEsc = (e) => {
+        if (e.key === "Escape") setRotateDismissed(true);
+      };
+      window.addEventListener("keydown", onEsc);
+      return () => window.removeEventListener("keydown", onEsc);
+    }, [suggestRotate]);
     const T = dark ? DARK : LIGHT;
     const S = useMemo(() => makeStyles(T), [T]);
     useEffect(() => {
@@ -7616,7 +7779,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         }
       },
       "About"
-    ))), React.createElement(ThemeSwitch, { dark, onClick: () => setDark((d) => !d) }), showHelp && React.createElement(HelpModal, { onClose: () => setShowHelp(false), onSynthesize }), showAbout && React.createElement(AboutModal, { onClose: () => setShowAbout(false) }))), React.createElement("div", { style: {
+    ))), React.createElement(ThemeSwitch, { dark, onClick: () => setDark((d) => !d) }), showHelp && React.createElement(HelpModal, { onClose: () => setShowHelp(false), onSynthesize }), showAbout && React.createElement(AboutModal, { onClose: () => setShowAbout(false) }), suggestRotate && React.createElement(RotateModal, { onClose: () => setRotateDismissed(true) }))), React.createElement("div", { style: {
       ...S.body,
       position: "relative",
       gridTemplateColumns: showLaunch ? "0 1fr 0" : compact ? "30px 1fr 30px" : `${leftPanelOpen ? "270px" : "30px"} 1fr ${rightPanelOpen ? "250px" : "30px"}`
@@ -9686,6 +9849,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   //  PERSISTENCE
   // ============================================================================
   var AUTOSAVE_KEY2 = "mechanism-synthesizer:autosave";
+  var TAB_SCOPE2 = "mechanism-synthesizer";
   var readSynthAutosave = () => {
     try {
       const raw = localStorage.getItem(AUTOSAVE_KEY2);
@@ -9697,6 +9861,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     }
   };
   var writeSynthAutosave = (data) => {
+    if (!isTabOwner(TAB_SCOPE2)) return false;
     try {
       localStorage.setItem(AUTOSAVE_KEY2, JSON.stringify(data));
       return true;
@@ -9858,6 +10023,12 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   var ConstructionIcon = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M12 3v2.2" }), React.createElement("path", { d: "M12 5.2 5 20M12 5.2l7 14.8" }), React.createElement("path", { d: "M5 20h14" }));
   var GridIcon = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "1.5" }), React.createElement("path", { d: "M3 9h18M3 15h18M9 3v18M15 3v18" }));
   var MoreIcon = () => React.createElement("svg", { width: "15", height: "15", viewBox: "0 0 24 24", fill: "none" }, React.createElement("circle", { cx: "5", cy: "12", r: "1.7", fill: "currentColor", stroke: "none" }), React.createElement("circle", { cx: "12", cy: "12", r: "1.7", fill: "currentColor", stroke: "none" }), React.createElement("circle", { cx: "19", cy: "12", r: "1.7", fill: "currentColor", stroke: "none" }));
+  var panelCommon = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
+  var PanelLeftCloseIcon = ({ size = 17 }) => React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", "aria-hidden": "true", ...panelCommon }, React.createElement("rect", { x: "3", y: "5", width: "18", height: "14", rx: "2" }), React.createElement("rect", { x: "4", y: "6", width: "4", height: "12", rx: "1", fill: "currentColor", stroke: "none" }), React.createElement("path", { d: "M17 9.5 13.5 12l3.5 2.5" }));
+  var PanelLeftOpenIcon = ({ size = 17 }) => React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", "aria-hidden": "true", ...panelCommon }, React.createElement("rect", { x: "3", y: "5", width: "18", height: "14", rx: "2" }), React.createElement("rect", { x: "4", y: "6", width: "4", height: "12", rx: "1", fill: "currentColor", stroke: "none" }), React.createElement("path", { d: "M13.5 9.5 17 12l-3.5 2.5" }));
+  var PanelRightCloseIcon = ({ size = 17 }) => React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", "aria-hidden": "true", ...panelCommon }, React.createElement("rect", { x: "3", y: "5", width: "18", height: "14", rx: "2" }), React.createElement("rect", { x: "16", y: "6", width: "4", height: "12", rx: "1", fill: "currentColor", stroke: "none" }), React.createElement("path", { d: "M7 9.5 10.5 12 7 14.5" }));
+  var PanelRightOpenIcon = ({ size = 17 }) => React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", "aria-hidden": "true", ...panelCommon }, React.createElement("rect", { x: "3", y: "5", width: "18", height: "14", rx: "2" }), React.createElement("rect", { x: "16", y: "6", width: "4", height: "12", rx: "1", fill: "currentColor", stroke: "none" }), React.createElement("path", { d: "M10.5 9.5 7 12l3.5 2.5" }));
+  var RotateDeviceIcon2 = ({ size = 34 }) => React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.7", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true" }, React.createElement("rect", { x: "7", y: "2", width: "9", height: "15", rx: "2" }), React.createElement("path", { d: "M10.5 14.3h2" }), React.createElement("path", { d: "M21 10a7 7 0 1 1-2.7-5.5" }), React.createElement("path", { d: "M21 2.5v5h-5" }));
   var AboutModal2 = ({ onClose, T }) => {
     useEsc(onClose);
     return React.createElement("div", { onClick: onClose, style: {
@@ -9905,6 +10076,45 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       },
       "View on GitHub \u2197"
     ), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, textAlign: "center" } }, "\xA9 Dr. Tareq Zobaer | 2026")));
+  };
+  var RotateModal2 = ({ onClose, T }) => {
+    useEsc(onClose);
+    return React.createElement("div", { onClick: onClose, style: {
+      position: "fixed",
+      inset: 0,
+      zIndex: 50,
+      background: "rgba(10,14,22,0.55)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 16
+    } }, React.createElement("div", { onClick: (e) => e.stopPropagation(), style: {
+      background: T.panel,
+      border: `1px solid ${T.border2}`,
+      borderRadius: 10,
+      boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+      padding: 24,
+      maxWidth: 320,
+      width: "100%",
+      position: "relative",
+      textAlign: "center"
+    } }, React.createElement("button", { onClick: onClose, title: "Close", style: {
+      position: "absolute",
+      top: 10,
+      right: 10,
+      width: 26,
+      height: 26,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 0,
+      border: "none",
+      background: "transparent",
+      color: T.textMuted,
+      cursor: "pointer",
+      fontSize: 16,
+      lineHeight: 1
+    } }, "\xD7"), React.createElement("div", { style: { color: T.accent, marginBottom: 10 } }, React.createElement(RotateDeviceIcon2, null)), React.createElement("div", { style: { font: "800 14px ui-monospace,monospace", color: T.text, letterSpacing: 0.6, marginBottom: 8 } }, "Turn your device"), React.createElement("p", { style: { fontSize: 12.5, color: T.textSub, lineHeight: 1.5, margin: "0 0 18px" } }, "The canvas and both side panels want more width than portrait gives you. Turn your phone sideways for the full workspace and steadier dragging and zooming."), React.createElement("button", { className: "btn pri", style: { width: "100%" }, onClick: onClose }, "Continue in portrait")));
   };
   var HELP_STEPS2 = [
     { t: "Motion generation", d: "Drag coupler postures A/B on the canvas (or edit their coordinates). Two positions leave the pivots as a free choice; three fix them by a circle construction; four constrain W/Z to the Burmester circle-point curve, drawn on canvas \u2014 drag along it to trade off Grashof class and transmission angle." },
@@ -10148,6 +10358,39 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const [recovery, setRecovery] = useState(() => readSynthAutosave());
     const [dirty, setDirty] = useState(false);
     const loadedNotEditedRef = useRef(false);
+    const narrow = useMedia("(max-width: 900px)");
+    const compact = useMedia("(max-width: 640px)");
+    const portrait = useMedia("(orientation: portrait)");
+    const [leftPanelOverride, setLeftPanelOverride] = useState(null);
+    const [rightPanelOverride, setRightPanelOverride] = useState(null);
+    const leftPanelOpen = leftPanelOverride ?? !narrow;
+    const rightPanelOpen = rightPanelOverride ?? !narrow;
+    const toggleLeftPanel = () => {
+      const open = !leftPanelOpen;
+      setLeftPanelOverride(open);
+      if (open && compact) setRightPanelOverride(false);
+    };
+    const toggleRightPanel = () => {
+      const open = !rightPanelOpen;
+      setRightPanelOverride(open);
+      if (open && compact) setLeftPanelOverride(false);
+    };
+    const closeDrawers = () => {
+      setLeftPanelOverride(false);
+      setRightPanelOverride(false);
+    };
+    const drawerStyle = (side) => ({
+      position: "absolute",
+      top: 0,
+      bottom: 0,
+      [side]: 0,
+      zIndex: 40,
+      width: "min(280px, 86vw)",
+      boxSizing: "border-box",
+      boxShadow: `${side === "left" ? "" : "-"}8px 0 26px rgba(0,0,0,0.28)`
+    });
+    const [rotateDismissed, setRotateDismissed] = useState(false);
+    const suggestRotate = compact && portrait && !rotateDismissed;
     const [showMenu, setShowMenu] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const [showAbout, setShowAbout] = useState(false);
@@ -11903,7 +12146,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
         const t = e.target;
         if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
-        if (showMenu || showHelp || showAbout) return;
+        if (showMenu || showHelp || showAbout || suggestRotate) return;
         if (e.key.toLowerCase() === "b") {
           e.preventDefault();
           onClose();
@@ -11911,7 +12154,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       };
       window.addEventListener("keydown", onKey);
       return () => window.removeEventListener("keydown", onKey);
-    }, [onClose, showMenu, showHelp, showAbout]);
+    }, [onClose, showMenu, showHelp, showAbout, suggestRotate]);
     const downloadGif = useCallback(async () => {
       const ok = mode === "guidance" ? guidanceResult.ok : mode === "path" ? pathActive.ok : mode === "function" ? functionResult.ok : sliderResult.ok;
       if (!ok || gifBusy) return;
@@ -12105,7 +12348,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       padding: "0 2px 7px 2px",
       marginBottom: 8
     });
-    return React.createElement("div", { style: S.root }, React.createElement("header", { style: S.head }, React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, onClose && React.createElement(
+    return React.createElement("div", { style: S.root }, React.createElement("header", { style: {
+      ...S.head,
+      ...narrow ? { padding: "8px 10px", gap: 8 } : null,
+      ...compact ? { flexWrap: "wrap", rowGap: 8 } : null
+    } }, React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" } }, onClose && React.createElement(
       "button",
       {
         className: "btn",
@@ -12136,14 +12383,20 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           textAlign: "left"
         }
       },
-      React.createElement(BrandMark, null),
-      React.createElement("div", null, React.createElement("div", { style: S.title }, React.createElement(WordMark, { tool: "SYNTHESIZER" })), React.createElement("div", { style: S.sub }, onClose ? "Planar Mechanism Analysis & Synthesis" : "Four-bar & Quick-return Synthesis"))
-    )), React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" } }, Object.keys(MODES).map((m) => React.createElement(
+      React.createElement(BrandMark, { size: narrow ? 24 : 30 }),
+      React.createElement("div", null, React.createElement("div", { style: { ...S.title, ...narrow ? { fontSize: 13, letterSpacing: 1.4 } : null } }, React.createElement(WordMark, { tool: "SYNTHESIZER" })), !narrow && React.createElement("div", { style: S.sub }, onClose ? "Planar Mechanism Analysis & Synthesis" : "Four-bar & Quick-return Synthesis"))
+    )), React.createElement("nav", { className: "hscroll", style: {
+      display: "flex",
+      gap: 6,
+      alignItems: "center",
+      minWidth: 0,
+      ...compact ? { order: 3, width: "100%" } : { marginLeft: "auto" }
+    } }, Object.keys(MODES).map((m) => React.createElement(
       "button",
       {
         key: m,
         className: "btn" + (mode === m ? " on" : ""),
-        style: { padding: "6px 9px", fontSize: 11.5 },
+        style: { padding: narrow ? "7px 9px" : "6px 9px", fontSize: 11.5, flex: "0 0 auto", whiteSpace: "nowrap" },
         onClick: () => {
           setMode(m);
           setTheta2(0);
@@ -12152,7 +12405,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         }
       },
       MODES[m]
-    )), React.createElement("div", { style: { width: 1, height: 22, alignSelf: "center", flexShrink: 0, background: T.border, margin: "0 2px" } }), React.createElement("div", { ref: menuRef, style: { position: "relative" } }, React.createElement(
+    ))), React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", flex: "0 0 auto", ...compact ? { marginLeft: "auto" } : null } }, !compact && React.createElement("div", { style: { width: 1, height: 22, alignSelf: "center", flexShrink: 0, background: T.border, margin: "0 2px" } }), React.createElement("div", { ref: menuRef, style: { position: "relative" } }, React.createElement(
       "button",
       {
         className: "btn" + (showMenu ? " on" : ""),
@@ -12257,7 +12510,32 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         color: dark ? T.accent : "#ffffff",
         boxShadow: dark ? "none" : "0 1px 3px rgba(0,0,0,0.28)"
       } }, dark ? React.createElement(MoonIcon, null) : React.createElement(SunIcon, null))
-    )), showHelp && React.createElement(HelpModal2, { T, onClose: () => setShowHelp(false) }), showAbout && React.createElement(AboutModal2, { T, onClose: () => setShowAbout(false) })), React.createElement("div", { style: S.body }, React.createElement("aside", { style: S.panel }, recovery && React.createElement("div", { style: { ...S.hint, marginBottom: 14, borderLeft: `3px solid ${T.accentBlue}`, display: "flex", flexDirection: "column", gap: 8 } }, React.createElement("span", null, "Unsaved design from your last session (", MODES[recovery.mode] || "design", ")."), React.createElement("div", { style: { display: "flex", gap: 6 } }, React.createElement(
+    )), showHelp && React.createElement(HelpModal2, { T, onClose: () => setShowHelp(false) }), showAbout && React.createElement(AboutModal2, { T, onClose: () => setShowAbout(false) }), suggestRotate && React.createElement(RotateModal2, { T, onClose: () => setRotateDismissed(true) })), React.createElement("div", { style: {
+      ...S.body,
+      position: "relative",
+      gridTemplateColumns: compact ? "30px 1fr 30px" : `${leftPanelOpen ? "270px" : "30px"} 1fr ${rightPanelOpen ? "250px" : "30px"}`
+    } }, compact && (leftPanelOpen || rightPanelOpen) && React.createElement(
+      "div",
+      {
+        onPointerDown: closeDrawers,
+        style: { position: "absolute", inset: 0, zIndex: 35, background: "rgba(0,0,0,0.35)" }
+      }
+    ), React.createElement("aside", { style: {
+      ...S.panel,
+      position: "relative",
+      gridColumn: 1,
+      ...leftPanelOpen ? {} : { padding: "8px 4px", overflowX: "hidden" },
+      ...compact && leftPanelOpen ? drawerStyle("left") : null
+    } }, React.createElement("div", { style: { position: "sticky", top: 0, zIndex: 3 } }, React.createElement(
+      "button",
+      {
+        className: "btn",
+        title: leftPanelOpen ? "Collapse panel" : "Expand panel",
+        onClick: toggleLeftPanel,
+        style: leftPanelOpen ? { position: "absolute", top: -8, right: 8, padding: "4px 6px" } : { position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", padding: "4px 6px" }
+      },
+      leftPanelOpen ? React.createElement(PanelLeftCloseIcon, null) : React.createElement(PanelLeftOpenIcon, null)
+    )), React.createElement("div", { style: { display: leftPanelOpen ? "contents" : "none" } }, recovery && React.createElement("div", { style: { ...S.hint, marginBottom: 14, borderLeft: `3px solid ${T.accentBlue}`, display: "flex", flexDirection: "column", gap: 8 } }, React.createElement("span", null, "Unsaved design from your last session (", MODES[recovery.mode] || "design", ")."), React.createElement("div", { style: { display: "flex", gap: 6 } }, React.createElement(
       "button",
       {
         className: "btn pri",
@@ -12561,7 +12839,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       "Save ",
       cognateLabel || "linkage",
       " as .kinemech"
-    ), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, lineHeight: 1.4 } }, onUse ? "Sends the synthesized linkage to the analyzer for the full velocity/acceleration and force study. Your design inputs stay here \u2014 come back any time to adjust and re-send." : "Saves the synthesized linkage as a .kinemech file \u2014 open it in the Mechanism Analyzer for full velocity/acceleration study.", curveOn && " Point X is included as a joint on the coupler, ready to pick in the Analyzer's Trace selector.", exportCognate !== "original" && ` This hands over ${cognateLabel} instead of the original \u2014 same coupler point X, different ground pivots and link lengths.`))), React.createElement("div", { style: S.stage }, React.createElement("div", { style: S.canvasWrap }, React.createElement(
+    ), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, lineHeight: 1.4 } }, onUse ? "Sends the synthesized linkage to the analyzer for the full velocity/acceleration and force study. Your design inputs stay here \u2014 come back any time to adjust and re-send." : "Saves the synthesized linkage as a .kinemech file \u2014 open it in the Mechanism Analyzer for full velocity/acceleration study.", curveOn && " Point X is included as a joint on the coupler, ready to pick in the Analyzer's Trace selector.", exportCognate !== "original" && ` This hands over ${cognateLabel} instead of the original \u2014 same coupler point X, different ground pivots and link lengths.`)))), React.createElement("div", { style: { ...S.stage, gridColumn: 2 } }, React.createElement("div", { style: S.canvasWrap }, React.createElement(
       "canvas",
       {
         ref: canvasRef,
@@ -12688,7 +12966,22 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         title: "Download an animated GIF of one revolution at the current speed"
       },
       gifBusy ? `${Math.round(gifProgress * 100)}%` : React.createElement(GifIcon, null)
-    ))), React.createElement("aside", { style: S.results }, React.createElement("div", { style: S.stepTitle }, "Synthesized linkage"), !activeResult.ok ? React.createElement("div", { style: S.hint }, resultMessage(mode, activeResult)) : mode === "guidance" ? React.createElement(GuidanceResults, { r: guidanceResult, T, S, altPivots, cognates: cognateStats }) : mode === "path" ? React.createElement(
+    ))), React.createElement("aside", { style: {
+      ...S.results,
+      position: "relative",
+      gridColumn: 3,
+      ...rightPanelOpen ? {} : { padding: "8px 4px", overflowX: "hidden" },
+      ...compact && rightPanelOpen ? drawerStyle("right") : null
+    } }, React.createElement("div", { style: { position: "sticky", top: 0, zIndex: 3 } }, React.createElement(
+      "button",
+      {
+        className: "btn",
+        title: rightPanelOpen ? "Collapse panel" : "Expand panel",
+        onClick: toggleRightPanel,
+        style: rightPanelOpen ? { position: "absolute", top: -8, right: 8, padding: "4px 6px" } : { position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", padding: "4px 6px" }
+      },
+      rightPanelOpen ? React.createElement(PanelRightCloseIcon, null) : React.createElement(PanelRightOpenIcon, null)
+    )), React.createElement("div", { style: { display: rightPanelOpen ? "contents" : "none" } }, React.createElement("div", { style: S.stepTitle }, "Synthesized linkage"), !activeResult.ok ? React.createElement("div", { style: S.hint }, resultMessage(mode, activeResult)) : mode === "guidance" ? React.createElement(GuidanceResults, { r: guidanceResult, T, S, altPivots, cognates: cognateStats }) : mode === "path" ? React.createElement(
       PathResults,
       {
         r: pathActive,
@@ -12700,15 +12993,53 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         inferred: pathSub === "points" && pathInferRef,
         cognates: cognateStats
       }
-    ) : mode === "function" ? React.createElement(FunctionResults, { r: functionResult, T, S, cognates: cognateStats }) : React.createElement(SliderResults, { r: sliderResult, T, S }))));
+    ) : mode === "function" ? React.createElement(FunctionResults, { r: functionResult, T, S, cognates: cognateStats }) : React.createElement(SliderResults, { r: sliderResult, T, S })))));
   }
 
+  // ============================================================================
+  //  TAB LOCK OVERLAY
+  // ============================================================================
+  var useTabLock = (scope) => {
+    const scopes = Array.isArray(scope) ? scope : [scope];
+    const [locked, setLocked] = useState(() => scopes.some((s) => !isTabOwner(s)));
+    useEffect(() => {
+      const recompute = () => setLocked(scopes.some((s) => !isTabOwner(s)));
+      const unsubs = scopes.map((s) => subscribeTabLock(s, recompute));
+      return () => unsubs.forEach((u) => u());
+    }, [scopes.join(",")]);
+    const claim = () => scopes.forEach(claimTab);
+    return { locked, claim };
+  };
+  var TabLockOverlay = ({ T, onClaim }) => React.createElement("div", { style: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 1e3,
+    background: T.bg,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    font: "13px ui-monospace,SFMono-Regular,Menlo,monospace"
+  } }, React.createElement("div", { style: {
+    background: T.panel,
+    border: `1px solid ${T.border2}`,
+    borderRadius: 10,
+    boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+    padding: 24,
+    maxWidth: 340,
+    width: "100%",
+    textAlign: "center"
+  } }, React.createElement("div", { style: { display: "flex", justifyContent: "center", marginBottom: 14 } }, React.createElement(BrandMark, { size: 38 })), React.createElement("div", { style: { font: "800 14px ui-monospace,monospace", color: T.text, letterSpacing: 0.6, marginBottom: 8 } }, "Already open in another tab"), React.createElement("p", { style: { fontSize: 12.5, color: T.textSub, lineHeight: 1.5, margin: "0 0 18px" } }, "KineMech is open elsewhere, and that tab is the one saving your work. Editing here too would mean whichever tab you touch last silently overwrites the other's autosave."), React.createElement("button", { className: "btn pri", style: { width: "100%" }, onClick: onClaim }, "Use this tab instead"), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, marginTop: 10, lineHeight: 1.4 } }, "The other tab will switch to this same read-only state \u2014 anything unsaved there in the last couple seconds may be lost.")));
+
+  initTabLock("mechanism-analyzer");
+  initTabLock("mechanism-synthesizer");
   function KineMech() {
     const [dark, setDark] = useState(() => readDarkPref(false));
     useEffect(() => {
       document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
       writeDarkPref(dark);
     }, [dark]);
+    const { locked, claim } = useTabLock(["mechanism-analyzer", "mechanism-synthesizer"]);
     const [view, setView] = useState("analyze");
     const [incoming, setIncoming] = useState(null);
     const seqRef = useRef(0);
@@ -12736,7 +13067,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         onClose: () => setView("analyze"),
         incoming: incoming && incoming.target === "synthesize" ? incoming : null
       }
-    )));
+    )), locked && React.createElement(TabLockOverlay, { T: dark ? DARK : LIGHT, onClaim: claim }));
   }
   var root = ReactDOM.createRoot(document.getElementById("root"));
   root.render(
