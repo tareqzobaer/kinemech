@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>KineMech - Planar Mechanism Analysis &amp; Synthesis</title>
 <meta name="description" content="Build and analyze planar linkages online. Solve position, velocity, acceleration, and kinetostatic forces, or synthesize new four-bar and slider-crank designs." />
+<meta name="IE_RM_OFF" content="true" />
 <meta name="keywords" content="kinemech, planar mechanism, linkage synthesis, mechanism synthesis, four-bar linkage simulator, slider-crank analysis, Coriolis acceleration, kinetostatics" />
 <meta name="author" content="Dr. Tareq Zobaer" />
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
@@ -165,8 +166,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
 <div id="root">
 <header style="display:none;">
     <h1>KineMech - Planar Mechanism Analysis & Synthesis</h1>
-    <p>A web-based interactive tool for mechanical engineers, students, and researchers to analyze and synthesize planar linkages.</p>
-  </header>
+  <div>A web-based interactive tool for mechanical engineers, students, and researchers to analyze and synthesize planar linkages.</div>
+</header>
 <div id="boot">
   <svg class="boot-logo" viewBox="0 0 24 24" aria-hidden="true">
     <rect x="0.5" y="0.5" width="23" height="23" rx="4.5" fill="#ffffff" stroke="#c8d0de" />
@@ -3030,6 +3031,18 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     }
   };
   var locks = new Map();
+  var whenFirstVisible = (fn) => {
+    if (document.visibilityState !== "hidden") {
+      fn();
+      return;
+    }
+    const onVisible = () => {
+      if (document.visibilityState === "hidden") return;
+      document.removeEventListener("visibilitychange", onVisible);
+      fn();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+  };
   var notify = (scope) => {
     const l = locks.get(scope);
     if (l) l.listeners.forEach((fn) => fn(l.isOwner));
@@ -3040,6 +3053,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const freeOrStale = !cur || Date.now() - cur.ts > STALE_MS || cur.id === tabId;
     if (!freeOrStale) {
       l.isOwner = false;
+      l.contended = true;
       notify(scope);
       return;
     }
@@ -3047,28 +3061,35 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     setTimeout(() => {
       const after = readLock(scope);
       l.isOwner = !!after && after.id === tabId;
+      l.contended = true;
       notify(scope);
     }, 60 + Math.random() * 60);
   };
   var initTabLock = (scope) => {
     if (locks.has(scope)) return;
-    const l = { isOwner: false, listeners: new Set() };
+    const l = { isOwner: false, contended: false, listeners: new Set() };
     locks.set(scope, l);
-    tryClaim(scope);
-    setInterval(() => {
-      if (l.isOwner) writeLock(scope);
-      else tryClaim(scope);
-    }, HEARTBEAT_MS);
-    window.addEventListener("storage", (e) => {
-      if (e.key === keyFor(scope)) tryClaim(scope);
+    whenFirstVisible(() => {
+      tryClaim(scope);
+      setInterval(() => {
+        if (l.isOwner) writeLock(scope);
+        else tryClaim(scope);
+      }, HEARTBEAT_MS);
+      window.addEventListener("storage", (e) => {
+        if (e.key === keyFor(scope)) tryClaim(scope);
+      });
+      window.addEventListener("pagehide", () => clearLock(scope));
     });
-    window.addEventListener("pagehide", () => clearLock(scope));
   };
   var isTabOwner = (scope) => locks.get(scope)?.isOwner ?? true;
+  var isTabLocked = (scope) => {
+    const l = locks.get(scope);
+    return !!l && l.contended && !l.isOwner;
+  };
   var claimTab = (scope) => {
     if (!locks.has(scope)) return;
     writeLock(scope);
-    locks.get(scope).isOwner = true;
+    Object.assign(locks.get(scope), { isOwner: true, contended: true });
     notify(scope);
   };
   var subscribeTabLock = (scope, fn) => {
@@ -13001,9 +13022,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   // ============================================================================
   var useTabLock = (scope) => {
     const scopes = Array.isArray(scope) ? scope : [scope];
-    const [locked, setLocked] = useState(() => scopes.some((s) => !isTabOwner(s)));
+    const [locked, setLocked] = useState(() => scopes.some(isTabLocked));
     useEffect(() => {
-      const recompute = () => setLocked(scopes.some((s) => !isTabOwner(s)));
+      const recompute = () => setLocked(scopes.some(isTabLocked));
       const unsubs = scopes.map((s) => subscribeTabLock(s, recompute));
       return () => unsubs.forEach((u) => u());
     }, [scopes.join(",")]);
