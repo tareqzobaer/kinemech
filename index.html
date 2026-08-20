@@ -1814,7 +1814,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     return best ? { r: best.r, meshWith: best.jointId } : { r: rawR, meshWith: null };
   }
   var SLIDER_ANGLE_SNAP = Math.PI / 12;
-  var SLIDER_ANGLE_SNAP_TOL = Math.PI / 45;
+  var SLIDER_ANGLE_SNAP_TOL = Math.PI / 120;
   function snapSliderAngle(rawAngle) {
     const nearest = Math.round(rawAngle / SLIDER_ANGLE_SNAP) * SLIDER_ANGLE_SNAP;
     return Math.abs(rawAngle - nearest) < SLIDER_ANGLE_SNAP_TOL ? nearest : rawAngle;
@@ -3790,8 +3790,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     specTag: { width: 54, flex: "0 0 54px", fontSize: 9.5, letterSpacing: 0.4, fontWeight: 700, font: "700 9.5px ui-monospace,monospace" },
 
     specRef: { color: T.textSub, fontSize: 11, font: "11px ui-monospace,monospace", flex: 1, minWidth: 26, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
-    specValInput: { width: 48, textAlign: "right", fontVariantNumeric: "tabular-nums", borderRadius: 3 },
-    specUnit: { color: T.textMuted, fontSize: 10, minWidth: 14 },
+
+    specValInput: { width: 68, flexShrink: 0, textAlign: "right", fontVariantNumeric: "tabular-nums", borderRadius: 3 },
     legend: { marginTop: 18, padding: 12, background: T.row, borderRadius: 4, border: `1px solid ${T.rowBorder}`, display: "flex", flexDirection: "column", gap: 8 },
 
     typeBtn: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "8px 4px" },
@@ -4212,6 +4212,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
 
       undo: React.createElement(React.Fragment, null, React.createElement("path", { d: "M9 7h6.5a4.5 4.5 0 0 1 0 9H8" }), React.createElement("path", { d: "m12 4-3 3 3 3" })),
       redo: React.createElement(React.Fragment, null, React.createElement("path", { d: "M15 7H8.5a4.5 4.5 0 0 0 0 9H16" }), React.createElement("path", { d: "m12 4 3 3-3 3" })),
+
+      reset: React.createElement(React.Fragment, null, React.createElement("path", { d: "M3 12a9 9 0 1 0 2.13-5.82" }), React.createElement("path", { d: "M3 4v5h5" })),
 
       pin: React.createElement(React.Fragment, null, React.createElement("circle", { cx: "12", cy: "12", r: "7" }), React.createElement("circle", { cx: "12", cy: "12", r: "1.8", fill: "currentColor", stroke: "none" })),
       gear: React.createElement("path", { fillRule: "evenodd", fill: "currentColor", stroke: "none", d: "M21.2 12L20.4 15.7 17.8 14.6 16.5 16.5 18.5 18.5 15.3 20.6 14.3 18 12 18.4 12 21.2 8.3 20.4 9.4 17.8 7.5 16.5 5.5 18.5 3.4 15.3 6 14.3 5.6 12 2.8 12 3.6 8.3 6.2 9.4 7.5 7.5 5.5 5.5 8.7 3.4 9.7 6 12 5.6 12 2.8 15.7 3.6 14.6 6.2 16.5 7.5 18.5 5.5 20.6 8.7 18 9.7 18.4 12Z M15.4 12A3.4 3.4 0 1 1 8.6 12A3.4 3.4 0 1 1 15.4 12Z" }),
@@ -4706,7 +4708,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   var GeometryEditor = ({ joints, setJoints, links, numbers, jointNames, setOriginTo, scaleFactor = 1, unitLabel = "u", repositionJoint, setRepositionJoint, armReposition, onOpenCam, onLoadCamFile, camSummaries = {}, pairPick, onPick, onAddPartner }) => {
     const T = useTheme(), S = makeStyles(T);
     const upd = (id, key, val) => setJoints((arr) => arr.map((j) => j.id === id ? { ...j, [key]: parseFloat(val) || 0 } : j));
-    return React.createElement("div", null, React.createElement("div", { style: S.secLabel }, "Joint coordinates"), React.createElement("div", { style: S.specTable }, joints.map((j, i) => {
+    return React.createElement("div", null, React.createElement(Section, { title: "Joint coordinates", count: joints.length || null, defaultOpen: joints.length <= 6 }, React.createElement("div", { style: S.specTable }, joints.map((j, i) => {
       const atOrigin = Math.abs(j.x) < 1e-9 && Math.abs(j.y) < 1e-9;
       const repositioning = repositionJoint === j.id;
       return React.createElement("div", { key: j.id, style: {
@@ -4733,7 +4735,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         },
         atOrigin ? "\u2299 origin" : "set as origin"
       ))), repositioning && React.createElement("div", { style: { ...S.hint, marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 } }, React.createElement("span", null, "Drag anywhere on the canvas. Movement is gradual for fine control. Esc cancels."), React.createElement("button", { className: "btn", style: { padding: "3px 8px", fontSize: 10, flex: "0 0 auto" }, onClick: () => setRepositionJoint(null) }, "Cancel")), React.createElement("div", { style: { display: "flex", gap: 6 } }, React.createElement(LblNum, { label: "x", v: j.x, on: (v) => upd(j.id, "x", v) }), React.createElement(LblNum, { label: "y", v: j.y, on: (v) => upd(j.id, "y", v) }), j.type === "slider" && !j.slotLink && React.createElement(LblNum, { label: "axis\xB0", v: deg(j.sliderAngle || 0), on: (v) => setJoints((arr) => arr.map((jj) => jj.id === j.id ? { ...jj, sliderAngle: (parseFloat(v) || 0) * Math.PI / 180 } : jj)) })), j.type === "slider" && j.slotLink && React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, marginTop: 4 } }, "axis rotates with Link ", numbers[j.slotLink] ?? "?", " (set on the Topology step)"));
-    })), React.createElement(
+    }))), React.createElement(
       HigherPairs,
       {
         joints,
@@ -4749,7 +4751,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         onPick,
         onAddPartner
       }
-    ), React.createElement("div", { style: { ...S.secLabel, marginTop: 16 } }, "Link lengths (", unitLabel, ")"), React.createElement("div", { style: S.specTable }, React.createElement("div", { style: S.specHead }, React.createElement("span", { style: { width: 40, flex: "0 0 40px" } }, "link"), React.createElement("span", { style: { flex: 1 } }, "joints"), React.createElement("span", null, "length")), (() => {
+    ), React.createElement(Section, { title: `Link lengths (${unitLabel})`, count: links.length || null, defaultOpen: links.length <= 6 }, React.createElement("div", { style: S.specTable }, React.createElement("div", { style: S.specHead }, React.createElement("span", { style: { width: 40, flex: "0 0 40px" } }, "link"), React.createElement("span", { style: { flex: 1 } }, "joints"), React.createElement("span", null, "length")), (() => {
       const rows = links.flatMap((lk) => {
         const ids = lk.joints;
         const fan = [];
@@ -4766,7 +4768,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         borderLeft: `3px solid ${T.accent}`,
         borderBottom: i === rows.length - 1 ? "none" : S.specRow.borderBottom
       } }, React.createElement("span", { style: { ...S.specTag, color: T.accent, paddingLeft: 7 } }, "#", r.num), React.createElement("span", { style: S.specRef }, jointNames?.[r.j1] ?? r.j1, "\u2013", jointNames?.[r.j2] ?? r.j2), React.createElement("span", { style: { color: T.resVal, font: "700 13px ui-monospace,monospace", fontVariantNumeric: "tabular-nums" } }, fmt2(r.L, 3))));
-    })()));
+    })())));
   };
   var MassEditor = ({ links, setLinks, joints, setJoints, numbers, sliderNumbers, jointNames, isFrameLink }) => {
     const T = useTheme(), S = makeStyles(T);
@@ -5446,8 +5448,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       lo < 0 && hi > 0 && React.createElement("line", { x1: ml, y1: SY(0), x2: W - mr, y2: SY(0), stroke: T.chartAxis, strokeWidth: "1", opacity: "0.5" }),
       markerX != null && markerX >= Math.min(x0, x1) && markerX <= Math.max(x0, x1) && React.createElement("line", { x1: SX(markerX), y1: mt, x2: SX(markerX), y2: mt + ih, stroke: T.accent, strokeWidth: "1.5", strokeDasharray: "4 3", opacity: "0.85" }),
       asymptotes && asymptotes.filter((v) => v >= Math.min(x0, x1) && v <= Math.max(x0, x1)).map((v, i) => React.createElement("line", { key: i, x1: SX(v), y1: mt, x2: SX(v), y2: mt + ih, stroke: T.red, strokeWidth: "1.3", strokeDasharray: "2 3", opacity: "0.75" })),
-      points.map((p) => React.createElement("g", { key: p.name }, p.pts.map(([px, py], i) => React.createElement("circle", { key: i, cx: px, cy: py, r: "1.8", fill: p.color, opacity: "0.6" })))),
       paths.map((p) => React.createElement("path", { key: p.name, fill: "none", stroke: p.color, strokeWidth: "2", strokeLinejoin: "round", strokeLinecap: "round", d: p.d })),
+      points.map((p) => React.createElement("g", { key: p.name }, p.pts.map(([px, py], i) => React.createElement("circle", { key: i, cx: px, cy: py, r: "2", fill: p.color, opacity: "0.85" })))),
       hoverIdx != null && xs[hoverIdx] != null && React.createElement("g", null, React.createElement("line", { x1: SX(xs[hoverIdx]), y1: mt, x2: SX(xs[hoverIdx]), y2: mt + ih, stroke: T.chartAxis, strokeWidth: "1" }), chart.series.filter((s) => s.mode !== "points").map((s) => isFinite(s.values[hoverIdx]) && React.createElement(
         "circle",
         {
@@ -5743,6 +5745,13 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       if (!sessionStorage.getItem(HOME_NAV_KEY)) return false;
       sessionStorage.removeItem(HOME_NAV_KEY);
       return true;
+    } catch {
+      return false;
+    }
+  };
+  var peekHomeNav = () => {
+    try {
+      return !!sessionStorage.getItem(HOME_NAV_KEY);
     } catch {
       return false;
     }
@@ -7253,8 +7262,12 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     }, [dark]);
     const [step, setStep] = useState("topology");
     const activeTabRef = useRef(null);
+    const tabsNavRef = useRef(null);
     useEffect(() => {
       activeTabRef.current?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+      if (tabsNavRef.current?.contains(document.activeElement) && document.activeElement !== activeTabRef.current) {
+        activeTabRef.current?.focus({ preventScroll: true });
+      }
     }, [step]);
     const [joints, setJoints] = useState([]);
     const [links, setLinks] = useState([]);
@@ -8662,7 +8675,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         return false;
       }
       if (step === "solve" && measureDraft && !fbd) {
-        if (e.button === 1) e.preventDefault();
+        if (e.button === 1) {
+          e.preventDefault();
+          setMeasureDraft(null);
+          return true;
+        }
         const hit = hitJointSolved(sx, sy);
         if (hit) {
           setMeasureDraft((md) => {
@@ -11202,6 +11219,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       }
       if (tool === "rigid" && pendingLink.length >= 2) items.push(["Middle-click", "finish link"]);
       if (step === "geometry" && dimDraft && dimDraft.pts.length >= DIM_NEED[dimDraft.type] && dimDraft.value !== "") items.push(["Middle-click", "apply dimension"]);
+      if (step === "solve" && measureDraft && !fbd) items.push(["Middle-click", "done picking"]);
       if (JOINT_EDIT_STEPS.has(step) && !repositionJoint) items.push(["Right-click a joint", "move, ground, or delete it"]);
       return items;
     })();
@@ -11525,7 +11543,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       ...S.head,
       ...narrow ? { padding: "8px 10px", gap: 8 } : null,
       ...compact ? { flexWrap: "wrap", rowGap: 8 } : null
-    } }, React.createElement(
+    } }, React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" } }, React.createElement(
       "button",
       {
         type: "button",
@@ -11538,21 +11556,16 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         style: {
           display: "flex",
           alignItems: "center",
-          gap: 10,
           flex: "0 0 auto",
           background: "none",
           border: "none",
           padding: 0,
           margin: 0,
-          cursor: "pointer",
-          font: "inherit",
-          color: "inherit",
-          textAlign: "left"
+          cursor: "pointer"
         }
       },
-      React.createElement(BrandMark, { size: narrow ? 24 : 30 }),
-      React.createElement("div", null, React.createElement("div", { style: { ...S.title, ...narrow ? { fontSize: 13, letterSpacing: 1.4 } : null } }, React.createElement(WordMark, { tool: showLaunch ? null : "ANALYZER" })), (!narrow || showLaunch && !compact) && React.createElement("div", { style: S.sub }, showLaunch && onSynthesize ? "Planar Mechanism Analysis & Synthesis" : "Planar Kinematics & Kinetostatics"))
-    ), React.createElement("nav", { className: "hscroll", style: {
+      React.createElement(BrandMark, { size: narrow ? 24 : 30 })
+    ), React.createElement("div", null, React.createElement("div", { style: { ...S.title, ...narrow ? { fontSize: 13, letterSpacing: 1.4 } : null } }, React.createElement(WordMark, { tool: showLaunch ? null : "ANALYZER" })), (!narrow || showLaunch && !compact) && React.createElement("div", { style: S.sub }, showLaunch && onSynthesize ? "Planar Mechanism Analysis & Synthesis" : "Planar Kinematics & Kinetostatics"))), React.createElement("nav", { ref: tabsNavRef, className: "hscroll", style: {
       display: "flex",
       gap: 6,
       alignItems: "center",
@@ -11871,17 +11884,17 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         numbers: linkNumbers,
         isFrameLink
       }
-    )), React.createElement(Section, { title: "Reference image" }, React.createElement(ImageControls, { fileRef, onFile, img, imgOpacity, setImgOpacity, clearImg: () => setImg(null), onPaste: pasteFromClipboard, msg, showImg, setShowImg }), onSynthesize && React.createElement(React.Fragment, null, React.createElement("div", { style: S.secLabel }, "Or synthesize one"), React.createElement("button", { className: "btn", style: { width: "100%", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }, onClick: onSynthesize }, "Synthesize a linkage", React.createElement(Icon, { name: "arrowRight", size: 13 })), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, lineHeight: 1.4, marginBottom: 14 } }, "Design a linkage from a path to trace, prescribed positions, a function, a quick-return ratio, or a dwell. Then bring it straight back here to analyze.")))), step === "geometry" && React.createElement(React.Fragment, null, React.createElement("div", { style: S.secLabel }, "Image scale calibration"), React.createElement("div", { style: { marginBottom: 14, padding: 10, background: T.row, borderRadius: 4, border: `1px solid ${T.rowBorder}` } }, React.createElement("div", { style: { fontSize: 11.5, color: T.textSub, lineHeight: 1.45, marginBottom: 8 } }, "Click two points a known distance apart (e.g. a dimension on the image), enter the real distance, and all lengths convert to your units."), !calibrating ? React.createElement("button", { className: "btn", style: { width: "100%", lineHeight: 1.5 }, onClick: () => {
+    )), React.createElement(Section, { title: "Reference image" }, React.createElement(ImageControls, { fileRef, onFile, img, imgOpacity, setImgOpacity, clearImg: () => setImg(null), onPaste: pasteFromClipboard, msg, showImg, setShowImg }), onSynthesize && React.createElement(React.Fragment, null, React.createElement("div", { style: S.secLabel }, "Or synthesize one"), React.createElement("button", { className: "btn", style: { width: "100%", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }, onClick: onSynthesize }, "Synthesize a linkage", React.createElement(Icon, { name: "arrowRight", size: 13 })), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, lineHeight: 1.4, marginBottom: 14 } }, "Design a linkage from a path to trace, prescribed positions, a function, a quick-return ratio, or a dwell. Then bring it straight back here to analyze.")))), step === "geometry" && React.createElement(React.Fragment, null, React.createElement(Section, { title: "Image scale calibration" }, React.createElement("div", { style: { marginBottom: 14, padding: 10, background: T.row, borderRadius: 4, border: `1px solid ${T.rowBorder}` } }, React.createElement("div", { style: { fontSize: 11.5, color: T.textSub, lineHeight: 1.45, marginBottom: 8 } }, "Click two points a known distance apart (e.g. a dimension on the image), enter the real distance, and all lengths convert to your units.", scaleFactor !== 1 && React.createElement("div", { style: { marginTop: 6 } }, "1 world = ", scaleFactor.toPrecision(3), " ", unitLabel)), !calibrating ? React.createElement("button", { className: "btn", style: { width: "100%", lineHeight: 1.5 }, onClick: () => {
       setDimDraft(null);
       setRepositionJoint(null);
       setCalibrating(true);
       setCalibPts([]);
-    } }, scaleFactor !== 1 ? React.createElement(React.Fragment, null, "Recalibrate", React.createElement("br", null), "(1 world = ", scaleFactor.toPrecision(3), " ", unitLabel, ")") : "Set scale by 2 points") : React.createElement("div", null, React.createElement("div", { style: { ...S.hint, marginBottom: 8 } }, calibPts.length === 0 && "Click the first point.", calibPts.length === 1 && "Click the second point.", calibPts.length === 2 && "Two points set. Enter the real distance below."), React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 6 } }, React.createElement("label", { style: { flex: 2 } }, React.createElement("div", { style: { fontSize: 10, color: T.textMuted, marginBottom: 2 } }, "real distance"), React.createElement("input", { type: "number", step: "any", value: calibReal, onChange: (e) => setCalibReal(parseFloat(e.target.value) || 0) })), React.createElement("label", { style: { flex: 1 } }, React.createElement("div", { style: { fontSize: 10, color: T.textMuted, marginBottom: 2 } }, "unit"), React.createElement("input", { type: "text", value: unitLabel, onChange: (e) => setUnitLabel(e.target.value.slice(0, 6)) }))), React.createElement("div", { style: { display: "flex", gap: 6 } }, React.createElement("button", { className: "btn pri", style: { flex: 1 }, disabled: calibPts.length < 2, onClick: applyCalibration }, "Apply"), React.createElement("button", { className: "btn", onClick: () => {
+    } }, scaleFactor !== 1 ? "Recalibrate" : "Set scale by 2 points") : React.createElement("div", null, React.createElement("div", { style: { ...S.hint, marginBottom: 8 } }, calibPts.length === 0 && "Click the first point.", calibPts.length === 1 && "Click the second point.", calibPts.length === 2 && "Two points set. Enter the real distance below."), React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 6 } }, React.createElement("label", { style: { flex: 2 } }, React.createElement("div", { style: { fontSize: 10, color: T.textMuted, marginBottom: 2 } }, "real distance"), React.createElement("input", { type: "number", step: "any", value: calibReal, onChange: (e) => setCalibReal(parseFloat(e.target.value) || 0) })), React.createElement("label", { style: { flex: 1 } }, React.createElement("div", { style: { fontSize: 10, color: T.textMuted, marginBottom: 2 } }, "unit"), React.createElement("input", { type: "text", value: unitLabel, onChange: (e) => setUnitLabel(e.target.value.slice(0, 6)) }))), React.createElement("div", { style: { display: "flex", gap: 6 } }, React.createElement("button", { className: "btn pri", style: { flex: 1 }, disabled: calibPts.length < 2, onClick: applyCalibration }, "Apply"), React.createElement("button", { className: "btn", onClick: () => {
       setCalibrating(false);
       setCalibPts([]);
     } }, "Cancel"))), scaleFactor !== 1 && !calibrating && React.createElement("button", { className: "btn danger", style: { width: "100%", marginTop: 6 }, onClick: () => {
       setScaleFactor(1);
-    } }, "Reset scale")), React.createElement("div", { style: S.secLabel }, "Dimensions (", unitLabel, ")"), React.createElement("div", { style: { marginBottom: 14, padding: 10, background: T.row, borderRadius: 4, border: `1px solid ${T.rowBorder}` } }, React.createElement("div", { style: { fontSize: 11.5, color: T.textSub, lineHeight: 1.45, marginBottom: 8 } }, dimDraft ? React.createElement(React.Fragment, null, React.createElement("b", null, DIM_LABEL[dimDraft.type]), " selected. Pick its joints on the canvas.") : "Pick a dimension type, then click the joints it needs on the canvas."), React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 } }, React.createElement("button", { className: "btn" + (dimDraft?.type === "length" ? " on" : ""), title: "Length (aligned)", style: { display: "flex", justifyContent: "center" }, disabled: joints.length < 2, onClick: () => beginDim("length") }, React.createElement(Icon, { name: "dimAligned", size: 20 })), React.createElement("button", { className: "btn" + (dimDraft?.type === "horizontal" ? " on" : ""), title: "Horizontal distance", style: { display: "flex", justifyContent: "center" }, disabled: joints.length < 2, onClick: () => beginDim("horizontal") }, React.createElement(Icon, { name: "dimHoriz", size: 20 })), React.createElement("button", { className: "btn" + (dimDraft?.type === "vertical" ? " on" : ""), title: "Vertical distance", style: { display: "flex", justifyContent: "center" }, disabled: joints.length < 2, onClick: () => beginDim("vertical") }, React.createElement(Icon, { name: "dimVert", size: 20 })), React.createElement("button", { className: "btn" + (dimDraft?.type === "angle" ? " on" : ""), title: "Angle from the horizontal axis", style: { display: "flex", justifyContent: "center" }, disabled: joints.length < 2, onClick: () => beginDim("angle") }, React.createElement(Icon, { name: "dimAngleH", size: 20 })), React.createElement("button", { className: "btn" + (dimDraft?.type === "anglev" ? " on" : ""), title: "Angle from the vertical axis", style: { display: "flex", justifyContent: "center" }, disabled: joints.length < 2, onClick: () => beginDim("anglev") }, React.createElement(Icon, { name: "dimAngleV", size: 20 })), React.createElement("button", { className: "btn" + (dimDraft?.type === "angle2" ? " on" : ""), title: "Angle at a joint (vertex + 2 arms)", style: { display: "flex", justifyContent: "center" }, disabled: joints.length < 3, onClick: () => beginDim("angle2") }, React.createElement(Icon, { name: "dimAngle2", size: 20 }))), dimDraft && React.createElement("div", { style: { marginTop: 10 } }, React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 } }, React.createElement("div", { style: { display: "flex", gap: 4 } }, Array.from({ length: DIM_NEED[dimDraft.type] }).map((_, i) => React.createElement("div", { key: i, style: {
+    } }, "Reset scale"))), React.createElement(Section, { title: `Dimensions (${unitLabel}, \xB0)`, count: dimensions.length || null }, React.createElement("div", { style: { marginBottom: 14, padding: 10, background: T.row, borderRadius: 4, border: `1px solid ${T.rowBorder}` } }, React.createElement("div", { style: { fontSize: 11.5, color: T.textSub, lineHeight: 1.45, marginBottom: 8 } }, dimDraft ? React.createElement(React.Fragment, null, React.createElement("b", null, DIM_LABEL[dimDraft.type]), " selected. Pick its joints on the canvas.") : "Pick a dimension type, then click the joints it needs on the canvas."), React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 } }, React.createElement("button", { className: "btn" + (dimDraft?.type === "length" ? " on" : ""), title: "Length (aligned)", style: { display: "flex", justifyContent: "center" }, disabled: joints.length < 2, onClick: () => beginDim("length") }, React.createElement(Icon, { name: "dimAligned", size: 20 })), React.createElement("button", { className: "btn" + (dimDraft?.type === "horizontal" ? " on" : ""), title: "Horizontal distance", style: { display: "flex", justifyContent: "center" }, disabled: joints.length < 2, onClick: () => beginDim("horizontal") }, React.createElement(Icon, { name: "dimHoriz", size: 20 })), React.createElement("button", { className: "btn" + (dimDraft?.type === "vertical" ? " on" : ""), title: "Vertical distance", style: { display: "flex", justifyContent: "center" }, disabled: joints.length < 2, onClick: () => beginDim("vertical") }, React.createElement(Icon, { name: "dimVert", size: 20 })), React.createElement("button", { className: "btn" + (dimDraft?.type === "angle" ? " on" : ""), title: "Angle from the horizontal axis", style: { display: "flex", justifyContent: "center" }, disabled: joints.length < 2, onClick: () => beginDim("angle") }, React.createElement(Icon, { name: "dimAngleH", size: 20 })), React.createElement("button", { className: "btn" + (dimDraft?.type === "anglev" ? " on" : ""), title: "Angle from the vertical axis", style: { display: "flex", justifyContent: "center" }, disabled: joints.length < 2, onClick: () => beginDim("anglev") }, React.createElement(Icon, { name: "dimAngleV", size: 20 })), React.createElement("button", { className: "btn" + (dimDraft?.type === "angle2" ? " on" : ""), title: "Angle at a joint (vertex + 2 arms)", style: { display: "flex", justifyContent: "center" }, disabled: joints.length < 3, onClick: () => beginDim("angle2") }, React.createElement(Icon, { name: "dimAngle2", size: 20 }))), dimDraft && React.createElement("div", { style: { marginTop: 10 } }, React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 } }, React.createElement("div", { style: { display: "flex", gap: 4 } }, Array.from({ length: DIM_NEED[dimDraft.type] }).map((_, i) => React.createElement("div", { key: i, style: {
       width: 18,
       height: 18,
       borderRadius: "50%",
@@ -11905,14 +11918,14 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           if (e.key === "Enter") commitDim();
         }
       }
-    )), React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 6 } }, React.createElement("button", { className: "btn pri", style: { flex: 1 }, disabled: dimDraft.pts.length < DIM_NEED[dimDraft.type] || dimDraft.value === "", onClick: commitDim }, "Apply"), React.createElement("button", { className: "btn", onClick: cancelDim }, "Cancel"))), dimensions.length > 0 && React.createElement("div", { style: S.specTable }, React.createElement("div", { style: S.specHead }, React.createElement("span", { style: { width: 54, flex: "0 0 54px" } }, "type"), React.createElement("span", { style: { flex: 1 } }, "ref"), React.createElement("span", null, "value")), dimensions.map((d, i) => {
+    )), React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 6 } }, React.createElement("button", { className: "btn pri", style: { flex: 1 }, disabled: dimDraft.pts.length < DIM_NEED[dimDraft.type] || dimDraft.value === "", onClick: commitDim }, "Apply"), React.createElement("button", { className: "btn", onClick: cancelDim }, "Cancel")))), dimensions.length > 0 && React.createElement("div", { style: S.specTable }, React.createElement("div", { style: S.specHead }, React.createElement("span", { style: { width: 54, flex: "0 0 54px" } }, "type"), React.createElement("span", { style: { flex: 1 } }, "ref"), React.createElement("span", null, "value")), dimensions.map((d, i) => {
       const angular = DIM_CATEGORY[d.type] === "angular";
       const ref = d.type === "angle2" && !d.d ? `${jointNames[d.a] || d.a}: ${jointNames[d.b] || d.b}, ${jointNames[d.c] || d.c}` : (jointNames[d.a] || d.a) + "\u2013" + (jointNames[d.b] || d.b) + (d.type === "angle2" ? ` / ${jointNames[d.c] || d.c}\u2013${jointNames[d.d] || d.d}` : "");
       return React.createElement("div", { key: d.id, style: {
         ...S.specRow,
         borderLeft: `3px solid ${angular ? T.accentPurple : T.accentBlue}`,
         borderBottom: i === dimensions.length - 1 ? "none" : S.specRow.borderBottom
-      } }, React.createElement("span", { style: { ...S.specTag, color: angular ? T.accentPurple : T.accentBlue, paddingLeft: 7 } }, DIM_ABBR[d.type]), React.createElement("span", { style: S.specRef, title: ref }, ref), React.createElement(DimValueInput, { d, editDimValue, inputStyle: S.specValInput }), angular && React.createElement("span", { style: S.specUnit }, "\xB0"), React.createElement("button", { className: "xbtn", style: S.xbtn, title: "Delete dimension", "aria-label": "Delete dimension", onClick: () => deleteDim(d.id) }, "\xD7"));
+      } }, React.createElement("span", { style: { ...S.specTag, color: angular ? T.accentPurple : T.accentBlue, paddingLeft: 7 } }, DIM_ABBR[d.type]), React.createElement("span", { style: S.specRef, title: ref }, ref), React.createElement(DimValueInput, { d, editDimValue, inputStyle: S.specValInput }), React.createElement("button", { className: "xbtn", style: S.xbtn, title: "Delete dimension", "aria-label": "Delete dimension", onClick: () => deleteDim(d.id) }, "\xD7"));
     }))), React.createElement(
       GeometryEditor,
       {
@@ -12190,7 +12203,38 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         WebkitBackdropFilter: "blur(10px)",
         boxShadow: "0 4px 18px rgba(0,0,0,0.14)"
       } }, React.createElement("b", { style: { color: T.text } }, TOOL_META[t].label), React.createElement("span", { style: { color: T.textMuted } }, " (", TOOL_META[t].key.toUpperCase(), ")"), React.createElement("span", { style: { color: T.textSub } }, ": ", TOOL_META[t].tip)))
-    ))))), jointMenu && React.createElement(React.Fragment, null, React.createElement(
+    )))), React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 5 } }, React.createElement("div", { "aria-hidden": "true", style: { height: 1, background: T.glassBorder, margin: "1px 1px" } }), React.createElement("div", { style: { position: "relative", display: "flex" } }, React.createElement(
+      "button",
+      {
+        className: "btn danger",
+        "aria-label": "Reset: clear this mechanism back to a blank canvas",
+        onClick: reset,
+        onPointerEnter: () => setHoverTool("reset"),
+        onPointerLeave: () => setHoverTool((h) => h === "reset" ? null : h),
+        onFocus: () => setHoverTool("reset"),
+        onBlur: () => setHoverTool((h) => h === "reset" ? null : h),
+        style: { padding: 6, lineHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }
+      },
+      React.createElement(Icon, { name: "reset", size: 18 })
+    ), hoverTool === "reset" && React.createElement("div", { role: "tooltip", style: {
+      position: "absolute",
+      left: "calc(100% + 8px)",
+      top: "50%",
+      transform: "translateY(-50%)",
+      zIndex: 6,
+      whiteSpace: "nowrap",
+      pointerEvents: "none",
+      fontSize: 11.5,
+      lineHeight: 1.3,
+      color: T.text,
+      padding: "5px 9px",
+      borderRadius: 6,
+      background: T.glassBg,
+      border: `1px solid ${T.glassBorder}`,
+      backdropFilter: "blur(10px)",
+      WebkitBackdropFilter: "blur(10px)",
+      boxShadow: "0 4px 18px rgba(0,0,0,0.14)"
+    } }, React.createElement("b", { style: { color: T.text } }, "Reset"), React.createElement("span", { style: { color: T.textSub } }, ": clear this mechanism back to a blank canvas"))))), jointMenu && React.createElement(React.Fragment, null, React.createElement(
       "div",
       {
         onClick: () => setJointMenu(null),
@@ -14382,20 +14426,15 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         style: {
           display: "flex",
           alignItems: "center",
-          gap: 10,
           background: "none",
           border: "none",
           padding: 0,
           margin: 0,
-          cursor: "pointer",
-          font: "inherit",
-          color: "inherit",
-          textAlign: "left"
+          cursor: "pointer"
         }
       },
-      React.createElement(BrandMark, { size: narrow ? 24 : 30 }),
-      React.createElement("div", null, React.createElement("div", { style: { ...S.title, ...narrow ? { fontSize: 13, letterSpacing: 1.4 } : null } }, React.createElement(WordMark, { tool: "PROFILER" })), !narrow && React.createElement("div", { style: S.sub }, "Cam Profiles & Follower Motion"))
-    )), React.createElement("nav", { className: "hscroll", style: { display: "flex", gap: 6, alignItems: "center", minWidth: 0, marginLeft: "auto", marginRight: 14 } }, !narrow && React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, React.createElement("span", { style: { fontSize: 10.5, color: T.textMuted, fontWeight: 700 } }, "STATIONS"), React.createElement(
+      React.createElement(BrandMark, { size: narrow ? 24 : 30 })
+    ), React.createElement("div", null, React.createElement("div", { style: { ...S.title, ...narrow ? { fontSize: 13, letterSpacing: 1.4 } : null } }, React.createElement(WordMark, { tool: "PROFILER" })), !narrow && React.createElement("div", { style: S.sub }, "Cam Profiles & Follower Motion"))), React.createElement("nav", { className: "hscroll", style: { display: "flex", gap: 6, alignItems: "center", minWidth: 0, marginLeft: "auto", marginRight: 14 } }, !narrow && React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, React.createElement("span", { style: { fontSize: 10.5, color: T.textMuted, fontWeight: 700 } }, "STATIONS"), React.createElement(
       "div",
       {
         style: { display: "flex", border: `1px solid ${T.border2}`, borderRadius: 4, overflow: "hidden" },
@@ -14708,7 +14747,19 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         onPointerUp,
         onPointerCancel: onPointerUp
       }
-    ), React.createElement("div", { style: {
+    ), result?.ok && blockingIssue && React.createElement("div", { style: {
+      position: "absolute",
+      top: 10,
+      left: "50%",
+      transform: "translateX(-50%)",
+      maxWidth: "min(92%, 460px)",
+      pointerEvents: "none",
+      textAlign: "center",
+      ...S.hint,
+      border: `1px solid ${T.red}`,
+      color: T.red,
+      fontWeight: 600
+    } }, blockingIssue.message, React.createElement("span", { style: { display: "block", fontSize: 10, color: T.textMuted, fontWeight: 400, marginTop: 3 } }, "See Findings for detail.")), React.createElement("div", { style: {
       position: "absolute",
       left: 10,
       bottom: 10,
@@ -17728,7 +17779,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         const sol0 = solveFourbar(r.O2, r.O4, r.a, r.b, r.c, thetaVal, r.circuit);
         const idx = (Math.round(wrap(thetaVal) / TAU4 * 720) % 720 + 720) % 720;
         const D0 = r.dyadTrace[idx];
-        const ang = dwellAngle;
+        const ang = rad(dwellAngle);
         return {
           dwell: true,
           O2: vrot(r.O2, ang),
@@ -17890,7 +17941,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         pts.push({ x: O2w.x - r.r2, y: O2w.y - r.r2 }, { x: O2w.x + r.r2, y: O2w.y + r.r2 });
         pts.push(vrot({ x: r.xmin, y: 0 }, ang), vrot({ x: r.xmax, y: 0 }, ang));
       } else if (mode === "dwell" && dwellResult && dwellResult.result.ok) {
-        const r = dwellResult.result, ang = dwellAngle, rot = (p) => vrot(p, ang);
+        const r = dwellResult.result, ang = rad(dwellAngle), rot = (p) => vrot(p, ang);
         pts.push(rot(r.O2), rot(r.O4), rot(r.O6), rot(r.C));
         if (r.trace) r.trace.runs.forEach((run) => run.forEach((p) => pts.push(rot(p))));
         for (const d of r.dyadTrace) if (d) pts.push(rot(d));
@@ -18849,7 +18900,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         return;
       }
       const r = dr.result;
-      const ang = dwellAngle, rot = (p) => vrot(p, ang);
+      const ang = rad(dwellAngle), rot = (p) => vrot(p, ang);
       const O2 = rot(r.O2), O4 = rot(r.O4), O6 = rot(r.O6), C = rot(r.C);
       if (r.trace) {
         ctx.setLineDash([]);
@@ -19126,7 +19177,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       if (!P3) return null;
       const D0 = r.dyadTrace[0];
       if (!D0) return null;
-      const ang = dwellAngle, rot = (p) => vrot(p, ang);
+      const ang = rad(dwellAngle), rot = (p) => vrot(p, ang);
       const O2w = rot(r.O2), O4w = rot(r.O4), O6w = rot(r.O6);
       const Aw = rot(sol.A), Bw = rot(sol.B), Pw = rot(P3), Dw = rot(D0);
       return {
@@ -19805,20 +19856,15 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         style: {
           display: "flex",
           alignItems: "center",
-          gap: 10,
           background: "none",
           border: "none",
           padding: 0,
           margin: 0,
-          cursor: "pointer",
-          font: "inherit",
-          color: "inherit",
-          textAlign: "left"
+          cursor: "pointer"
         }
       },
-      React.createElement(BrandMark, { size: narrow ? 24 : 30 }),
-      React.createElement("div", null, React.createElement("div", { style: { ...S.title, ...narrow ? { fontSize: 13, letterSpacing: 1.4 } : null } }, React.createElement(WordMark, { tool: "SYNTHESIZER" })), !narrow && React.createElement("div", { style: S.sub }, "Path, Motion & Dwell Synthesis"))
-    )), React.createElement("nav", { className: "hscroll", style: {
+      React.createElement(BrandMark, { size: narrow ? 24 : 30 })
+    ), React.createElement("div", null, React.createElement("div", { style: { ...S.title, ...narrow ? { fontSize: 13, letterSpacing: 1.4 } : null } }, React.createElement(WordMark, { tool: "SYNTHESIZER" })), !narrow && React.createElement("div", { style: S.sub }, "Path, Motion & Dwell Synthesis"))), React.createElement("nav", { className: "hscroll", style: {
       display: "flex",
       gap: 6,
       alignItems: "center",
@@ -20208,7 +20254,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         onClick: () => setFgChebyshev((s) => !s)
       },
       fgChebyshev ? "Chebyshev spacing \u2713" : "Uniform spacing"
-    ), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, lineHeight: 1.4 } }, "Chebyshev spacing places the three precision points to minimize the peak structural error.")) : mode === "dwell" ? React.createElement(React.Fragment, null, React.createElement("div", { style: S.stepTitle }, "Six-bar dwell (S1)"), React.createElement(P2, { T }, "Synthesize a Stephenson III six-bar whose output link holds nearly still for part of the cycle: the mechanism that replaces a cam in high-speed machinery. Nothing here is placed by hand: the search finds the four-bar, the arc its coupler point dwells around, and the 5-6 dyad."), React.createElement("div", { style: S.secLabel }, "Requested dwell span (deg)"), React.createElement("div", { style: { marginBottom: 12 } }, React.createElement(LblNum2, { T, label: "\u03B2", v: dwellBeta, on: (v) => setDwellBeta(Math.max(5, Math.min(180, v))) })), React.createElement("div", { style: S.secLabel }, "Scale"), React.createElement("div", { style: { marginBottom: 12 } }, React.createElement(LblNum2, { T, label: "L", v: dwellScale, step: lenStep(dwellScale), on: (v) => setDwellScale(Math.max(0.1, v)) }), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, lineHeight: 1.4, marginTop: 4 } }, "A characteristic size for the search box. S1 has no target curve to derive one from, unlike every other mode here. Doesn't need to be exact; it keeps the search's link-length range in the right ballpark.")), React.createElement("div", { style: S.secLabel }, "Placement (display only)"), React.createElement(RangeNum, { v: dwellAngle, on: setDwellAngle, min: "0", max: "360", step: "1", mb: 12 }), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, lineHeight: 1.4, marginBottom: 12 } }, "The search solves in its own frame. This only rotates the result for viewing and export, the same way the quick-return mode's rail angle does."), React.createElement("div", { style: S.secLabel }, "Search effort"), React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 8 } }, Object.keys(DWELL_EFFORT).map((k) => React.createElement(
+    ), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, lineHeight: 1.4 } }, "Chebyshev spacing places the three precision points to minimize the peak structural error.")) : mode === "dwell" ? React.createElement(React.Fragment, null, React.createElement("div", { style: S.stepTitle }, "Six-bar dwell (S1)"), React.createElement(P2, { T }, "Synthesize a Stephenson III six-bar whose output link holds nearly still for part of the cycle: the mechanism that replaces a cam in high-speed machinery. Nothing here is placed by hand: the search finds the four-bar, the arc its coupler point dwells around, and the 5-6 dyad."), React.createElement("div", { style: S.secLabel }, "Requested dwell span (deg)"), React.createElement("div", { style: { marginBottom: 12 } }, React.createElement(LblNum2, { T, label: "\u03B2", v: dwellBeta, on: (v) => setDwellBeta(Math.max(5, Math.min(180, v))) })), React.createElement("div", { style: S.secLabel }, "Search scale (L)"), React.createElement("div", { style: { marginBottom: 12 } }, React.createElement(LblNum2, { T, label: "L", v: dwellScale, step: lenStep(dwellScale), on: (v) => setDwellScale(Math.max(0.1, v)) }), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, lineHeight: 1.4, marginTop: 4 } }, "A characteristic size for the search box. S1 has no target curve to derive one from, unlike every other mode here. Doesn't need to be exact; it keeps the search's link-length range in the right ballpark.")), React.createElement("div", { style: S.secLabel }, "Orientation (display only)"), React.createElement(RangeNum, { v: dwellAngle, on: setDwellAngle, min: "0", max: "360", step: "1", mb: 12 }), React.createElement("div", { style: { fontSize: 10.5, color: T.textMuted, lineHeight: 1.4, marginBottom: 12 } }, "The search solves in its own frame. This only rotates the result for viewing and export, the same way the quick-return mode's rail angle does."), React.createElement("div", { style: S.secLabel }, "Search effort"), React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 8 } }, Object.keys(DWELL_EFFORT).map((k) => React.createElement(
       "button",
       {
         key: k,
@@ -20562,6 +20608,22 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   initTabLock("mechanism-analyzer");
   initTabLock("mechanism-synthesizer");
   initTabLock("mechanism-cam");
+  var VIEW_KEY = "kinemech:view";
+  var readViewPref = () => {
+    if (peekHomeNav()) return "analyze";
+    try {
+      const raw = sessionStorage.getItem(VIEW_KEY);
+      if (raw === "analyze" || raw === "synthesize" || raw === "cam") return raw;
+    } catch {
+    }
+    return "analyze";
+  };
+  var writeViewPref = (v) => {
+    try {
+      sessionStorage.setItem(VIEW_KEY, v);
+    } catch {
+    }
+  };
   function KineMech() {
     const [dark, setDark] = useState(() => readDarkPref(false));
     useEffect(() => {
@@ -20569,7 +20631,10 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       writeDarkPref(dark);
     }, [dark]);
     const { locked, claim } = useTabLock(["mechanism-analyzer", "mechanism-synthesizer", "mechanism-cam"]);
-    const [view, setViewState] = useState("analyze");
+    const [view, setViewState] = useState(readViewPref);
+    useEffect(() => {
+      writeViewPref(view);
+    }, [view]);
     const viewHistoryRef = useRef([]);
     const navigate = (v) => {
       if (v === view) return;
