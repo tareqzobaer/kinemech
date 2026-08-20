@@ -19,6 +19,25 @@
          renderer substitutes for the ui-monospace stack — that substitution is
          exactly what silently overflowed the canvas last time, so length is
          pinned rather than estimated from character count. -->
-    <text x="482" y="396" font-size="20" font-weight="600" fill="#2f9e6e" textLength="650" lengthAdjust="spacingAndGlyphs">Multi-loop Linkages &#183; Path Generation &#183; Balancing</text>
+    <!-- Four slots, one per pillar the tool stands on: general topology,
+         synthesis, forces, and cams. The third used to read "Balancing",
+         which is one feature OF the kinetostatics engine rather than the
+         engine — so the half of the app that og:description leads with
+         ("kinematics and kinetostatic forces") was represented by its
+         narrowest corner. "Force Analysis" names the engine and subsumes
+         balancing.
+         WHY THE LAST ONE IS "Cams" AND NOT "Cam Profiles": this line is
+         width-pinned (see below), and the pin is a clamp, not a layout — it
+         will happily crush a too-long string rather than wrap or overflow,
+         which hides the problem instead of showing it. Measured in a real
+         browser at this font size, the four labels run:
+             ... Force Analysis · Cam Profiles     759px  -> ends at x=1241
+             ... Force Analysis · Cams             671px  -> ends at x=1153
+         The canvas is 1200 wide, so the long form is off the edge at its
+         natural width and only "fits" by being squeezed 15%, which reads as
+         a condensed font rather than a design. The short form needs a 3%
+         squeeze against the 650 pin — imperceptible, and it leaves the
+         card's right edge exactly where the three-slot version had it. -->
+    <text x="482" y="396" font-size="20" font-weight="600" fill="#2f9e6e" textLength="650" lengthAdjust="spacingAndGlyphs">Multi-loop Linkages &#183; Path Generation &#183; Force Analysis &#183; Cams</text>
   </g>
 </svg>

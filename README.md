@@ -6,14 +6,15 @@
 
 KineMech is a browser-based tool for analysis and synthesis of planar pin and slider mechanisms.
 
-It includes two integrated tools:
+It includes three integrated tools:
 
 - **Analyzer:** builds a mechanism from joints and links and performs position, velocity, acceleration, and optional kinetostatic analysis.
-- **Synthesizer:** designs four-bar and offset slider-crank mechanisms from prescribed motion, path, function, or quick-return requirements.
+- **Synthesizer:** designs four-bar and offset slider-crank mechanisms from prescribed motion, path, function, or quick-return requirements, and six-bar dwell mechanisms from a required hold.
+- **Profiler:** generates plate, cylindrical, or linear cam profiles from a motion program and checks them for pressure angle and undercut.
 
-Both tools use the same mechanism representation, allowing a synthesized mechanism to be transferred directly to the analyzer.
+All three tools use the same mechanism representation. A synthesized mechanism can be transferred directly to the analyzer, and a cam profile designed in the Profiler can be paired with a follower joint there for full kinetostatic analysis of the contact.
 
-![KineMech example](radial_engine.gif)
+![KineMech example](quick_return.gif)
 
 ## Analysis
 
@@ -21,7 +22,7 @@ The analyzer supports general planar mechanisms rather than being limited to sta
 
 ### Kinematic analysis
 
-- Pin, slider, fixed-center gear pairs, and rotating-slot joints.
+- Pin, slider, fixed-center gear pairs, rotating-slot joints, and cam-follower pairs.
 - Multi-loop mechanisms and binary, ternary, and higher-order links.
 - Position analysis using a general constraint formulation.
 - Velocity and acceleration analysis using the same constraint Jacobian.
@@ -52,6 +53,8 @@ The analysis can include:
 - Torsional springs and dampers
 
 The solver determines joint reactions and the input torque required to maintain the prescribed angular velocity and acceleration. Results can be viewed using an exploded free-body diagram and full-cycle plots of reactions, torque, and shaking force.
+
+A counterweight can be added to the driving crank to reduce this shaking force. The exact rotating-mass solution is computed directly, then a numerical search refines its placement to minimize the whole mechanism's shaking force rather than just the crank's own, and a before/after comparison is reported.
 
 This is **kinetostatic analysis**, not forward dynamics. The motion is prescribed, and the analysis determines the forces and torque required to produce that motion.
 
@@ -105,6 +108,10 @@ A slider-crank can be synthesized from:
 
 The mechanism is obtained using the inscribed-angle construction, and the achieved stroke and time ratio are checked against the specified values.
 
+### Dwell synthesis
+
+Searches for a Stephenson III six-bar mechanism whose output link holds nearly stationary over part of the input revolution, then swings through the rest of it — an approximate mechanical alternative to a cam. The search reports the achieved hold window and output swing, and the resulting mechanism can be sent to the analyzer like any other synthesized linkage.
+
 ### Additional synthesis features
 
 Each synthesis mode:
@@ -118,47 +125,57 @@ Four-bar synthesis modes can also display the two Roberts-Chebyshev cognates, wh
 
 A synthesized mechanism can be sent directly to the analyzer for further kinematic and kinetostatic analysis.
 
+## Cam design
+
+The Profiler generates a cam profile from a motion program: a sequence of rise, dwell, and fall segments, each assigned a motion law from uniform, parabolic, simple harmonic, cycloidal, modified trapezoid, modified sine, or 3-4-5 and 4-5-6-7 polynomial. The program is checked against the fundamental law of cam design before a profile is generated.
+
+Three cam families are supported:
+
+- Plate (radial disk) cams.
+- Cylindrical (grooved drum) cams.
+- Linear (translating) cams.
+
+For plate cams, the follower can be a knife edge, roller, flat face, or spherical face, mounted in-line, offset, or pivoted. The generated profile is checked for pressure angle against the usual translating/pivoted limits and for undercut (or, for a flat face, for the concavity it cannot follow).
+
+A cam designed in the Profiler can be paired with a follower joint in the analyzer, where the contact is treated as a frictionless higher pair: the solver reports the contact force along the common normal, detects follower jump, and includes any return spring holding the pair closed. The Profiler can also animate the cam turning under its follower and export the result as a GIF.
+
 ## Workflow
 
 The analyzer follows a step-by-step mechanism construction workflow.
 
-1. **Joints**  
-   Place pin, slider, or gear joints.
+1. **Topology**  
+   Place pin, slider, gear, or cam joints. Connect them with rigid links (a link can span two or more joints, allowing binary, ternary, and higher-order links) or with linear/torsional spring-damper elements. Choose which joints are held fixed as the ground.
 
-2. **Links**  
-   Define connections between joints. A rigid link can connect two or more joints, allowing binary, ternary, and higher-order links. Linear springs/dampers connect two joints, while torsional elements connect two links or a link and ground.
-
-3. **Roles**  
-   Select the ground link and driving link.
-
-4. **Geometry**  
+2. **Geometry**  
    Optionally trace a mechanism from a background image. Scale can be calibrated using two points and a known distance. Exact dimensions can then be specified for driving joints without moving the traced image.
 
-   For gear joints, the pitch radius, mesh partner, and external or internal mesh are specified.
+   For gear joints, the pitch radius, mesh partner, and external or internal mesh are specified. For cam joints, the base-circle radius sets a starting size, and the full profile is designed in the Profiler, which can be opened directly from the mechanism.
 
-5. **Elements**  
+3. **Elements**  
    Specify mass, inertia, and center of gravity for moving links and sliders. Spring and damper properties can also be defined.
 
-6. **Drive**  
-   Specify crank angle, angular velocity, and angular acceleration. For a slider driver, linear velocity and acceleration can be specified instead. Applied forces, torques, and gravity can be included when mass properties are available.
+4. **Drive**  
+   Choose the driving link, then specify crank angle, angular velocity, and angular acceleration. For a slider driver, linear velocity and acceleration can be specified instead. Applied forces, torques, and gravity can be included when mass properties are available.
 
-7. **Solve**  
-   Animate the mechanism and inspect position, velocity, acceleration, joint reactions, and input torque. Velocity and acceleration polygons, free-body diagrams, and full-cycle plots are also available.
+5. **Solve**  
+   Animate the mechanism and inspect position, velocity, acceleration, joint reactions, and input torque. Velocity and acceleration polygons, free-body diagrams, full-cycle plots, and crank balancing are also available.
 
 ## Presets
 
-The application includes ten built-in mechanisms:
+The application includes twelve built-in mechanisms:
 
-- Four-bar
+- Four-bar with coupler point, mass, and gravity
 - Change-point four-bar
-- Crank-driven slider-crank
-- Slider-driven slider-crank
+- Hoeken straight-line four-bar
 - Spring-returned slider-crank
+- Slider-driven slider-crank
 - Whitworth quick-return
-- Crank-shaper with mass
-- Four-bar with mass and gravity
-- Geared four-bar
+- Shaper (slotted-lever quick-return)
 - Five-cylinder radial engine
+- Geared four-bar
+- Stephenson III six-bar dwell
+- Plate cam driving a bell-crank and slider
+- Plate cam with a flat-faced follower
 
 These presets also serve as regression cases for different parts of the solver.
 
@@ -189,6 +206,12 @@ A path file containing:
 The analyzer can generate a `.kinepath` file from a traced joint, and the synthesizer can use it for target-curve synthesis.
 
 Standard `x,y[,theta]` CSV files are also supported.
+
+### `.kinemotion`
+
+A follower motion program: displacement and its derivatives against cam angle, with whether it closes over one revolution and whether the output is a translation or a rotation.
+
+The Profiler exports the program behind a designed cam, and the analyzer can export a solved joint or link's own motion as one. Either can be opened in the Profiler, which fits an imported program with a Fourier series before generating a profile from it. Standard CSV is also supported.
 
 ### Autosave
 
