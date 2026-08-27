@@ -2306,27 +2306,65 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   }
   var camProgramOutput = (mounting) => MOUNTINGS[mounting]?.translating ? "translation" : "rotation";
 
+  var cachedM = null;
+  var maxN = 0;
   function solveLinear(A, b) {
     const n2 = b.length;
     if (n2 === 0) return [];
-    const M = A.map((row, i) => row.slice().concat(b[i]));
+    if (n2 > maxN) {
+      maxN = Math.max(n2, 64);
+      cachedM = new Float64Array(maxN * (maxN + 1));
+    }
+    const M = cachedM;
+    const stride = n2 + 1;
+    for (let i = 0; i < n2; i++) {
+      const row = A[i];
+      const offset = i * stride;
+      for (let j = 0; j < n2; j++) {
+        M[offset + j] = row[j];
+      }
+      M[offset + n2] = b[i];
+    }
     for (let col = 0; col < n2; col++) {
       let piv = col;
-      for (let r = col + 1; r < n2; r++) if (Math.abs(M[r][col]) > Math.abs(M[piv][col])) piv = r;
-      if (Math.abs(M[piv][col]) < 1e-12) return null;
-      const tmp = M[col];
-      M[col] = M[piv];
-      M[piv] = tmp;
-      const d = M[col][col];
-      for (let c = col; c <= n2; c++) M[col][c] /= d;
+      let maxVal = Math.abs(M[piv * stride + col]);
+      for (let r = col + 1; r < n2; r++) {
+        const val = Math.abs(M[r * stride + col]);
+        if (val > maxVal) {
+          maxVal = val;
+          piv = r;
+        }
+      }
+      if (maxVal < 1e-12) return null;
+      if (piv !== col) {
+        const offset1 = col * stride;
+        const offset2 = piv * stride;
+        for (let c = col; c <= n2; c++) {
+          const tmp = M[offset1 + c];
+          M[offset1 + c] = M[offset2 + c];
+          M[offset2 + c] = tmp;
+        }
+      }
+      const offset = col * stride;
+      const d = M[offset + col];
+      for (let c = col; c <= n2; c++) {
+        M[offset + c] /= d;
+      }
       for (let r = 0; r < n2; r++) {
         if (r === col) continue;
-        const f = M[r][col];
+        const roffset = r * stride;
+        const f = M[roffset + col];
         if (f === 0) continue;
-        for (let c = col; c <= n2; c++) M[r][c] -= f * M[col][c];
+        for (let c = col; c <= n2; c++) {
+          M[roffset + c] -= f * M[offset + c];
+        }
       }
     }
-    return M.map((row) => row[n2]);
+    const out = new Array(n2);
+    for (let i = 0; i < n2; i++) {
+      out[i] = M[i * stride + n2];
+    }
+    return out;
   }
 
   // ============================================================================
@@ -3818,6 +3856,74 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     }, [query]);
     return match;
   };
+  function useEscape(isActive, onEscape) {
+    useEffect(() => {
+      if (!isActive) return;
+      const onEsc = (e) => {
+        if (e.key === "Escape") onEscape();
+      };
+      window.addEventListener("keydown", onEsc);
+      return () => window.removeEventListener("keydown", onEsc);
+    }, [isActive, onEscape]);
+  }
+  function usePanelState(narrow, compact) {
+    const [leftOverride, setLeftOverride] = useState(null);
+    const [rightOverride, setRightOverride] = useState(null);
+    const leftOpen = leftOverride ?? !narrow;
+    const rightOpen = rightOverride ?? !narrow;
+    const toggleLeft = React.useCallback(() => {
+      const open = !leftOpen;
+      setLeftOverride(open);
+      if (open && compact) setRightOverride(false);
+    }, [leftOpen, compact]);
+    const toggleRight = React.useCallback(() => {
+      const open = !rightOpen;
+      setRightOverride(open);
+      if (open && compact) setLeftOverride(false);
+    }, [rightOpen, compact]);
+    const closeDrawers = React.useCallback(() => {
+      setLeftOverride(false);
+      setRightOverride(false);
+    }, []);
+    const drawerStyle = React.useCallback((side) => ({
+      position: "absolute",
+      top: 0,
+      bottom: 0,
+      [side]: 0,
+      zIndex: 40,
+      width: "min(280px, 86vw)",
+      boxSizing: "border-box",
+      boxShadow: `${side === "left" ? "" : "-"}8px 0 26px rgba(0,0,0,0.28)`
+    }), []);
+    return {
+      leftOpen,
+      rightOpen,
+      toggleLeft,
+      toggleRight,
+      closeDrawers,
+      drawerStyle,
+      setLeftOverride,
+      setRightOverride
+    };
+  }
+  function useSplitPane(initialRatio = 0.6) {
+    const [splitRatio, setSplitRatio] = useState(initialRatio);
+    const dragState = React.useRef(null);
+    const onSplitPointerDown = React.useCallback((e, rowRef) => {
+      dragState.current = { sx: e.clientX, startRatio: splitRatio, w: rowRef.current?.clientWidth || 1 };
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    }, [splitRatio]);
+    const onSplitPointerMove = React.useCallback((e) => {
+      if (!dragState.current) return;
+      const { sx, startRatio, w } = dragState.current;
+      const next = startRatio + (e.clientX - sx) / w;
+      setSplitRatio(Math.min(0.85, Math.max(0.15, next)));
+    }, []);
+    const onSplitPointerUp = React.useCallback(() => {
+      dragState.current = null;
+    }, []);
+    return { splitRatio, onSplitPointerDown, onSplitPointerMove, onSplitPointerUp };
+  }
 
   var BrandMark = ({ size = 30 }) => React.createElement("svg", { viewBox: "0 0 24 24", width: size, height: size, "aria-hidden": "true", style: { display: "block", flex: "0 0 auto" } }, React.createElement("rect", { x: "0.5", y: "0.5", width: "23", height: "23", rx: "4.5", fill: "#ffffff", stroke: "#c8d0de" }), React.createElement("path", { d: "M7 4.5 L7 19.5", stroke: "#46557a", strokeWidth: "2.6", strokeLinecap: "round", fill: "none" }), React.createElement("path", { d: "M7 12.5 L17.5 5.5", stroke: "#2f9e6e", strokeWidth: "2.6", strokeLinecap: "round", fill: "none" }), React.createElement("path", { d: "M7 12.5 L17.5 19.5", stroke: "#3a7fc8", strokeWidth: "2.6", strokeLinecap: "round", fill: "none" }), React.createElement("circle", { cx: "7", cy: "12.5", r: "2.1", fill: "#ffffff", stroke: "#1a2236", strokeWidth: "1.5" }), React.createElement("circle", { cx: "17.5", cy: "5.5", r: "1.5", fill: "#1a2236" }), React.createElement("circle", { cx: "17.5", cy: "19.5", r: "1.5", fill: "#1a2236" }));
   var WordMark = ({ tool = null }) => React.createElement(React.Fragment, null, "KINEMECH", tool && React.createElement(React.Fragment, null, ".", React.createElement("span", { style: { fontWeight: 900 } }, tool)));
@@ -5864,6 +5970,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const { n: n2, cons } = constraintRows(joints, links);
     return n2 - cons.length;
   }
+  var cachedJ = null;
+  var cachedJMaxN = 0;
   function solveMechanism(joints, links, driver, guess, refPose = guess) {
     const { jmap, free, base, n: n2, cons, camIssue, gearIssue } = constraintRows(joints, links, refPose);
     if (n2 === 0) return { ok: false, reason: "dof", dof: 0 };
@@ -5932,7 +6040,12 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       return Math.cos(c.phi) * dx + Math.sin(c.phi) * dy - c.target;
     });
     const jac = (q2) => {
-      const J2 = Array.from({ length: n2 }, () => new Array(n2).fill(0));
+      if (n2 > cachedJMaxN) {
+        cachedJMaxN = Math.max(n2, 64);
+        cachedJ = Array.from({ length: cachedJMaxN }, () => new Float64Array(cachedJMaxN));
+      }
+      const J2 = cachedJ;
+      for (let i = 0; i < n2; i++) J2[i].fill(0);
       cons.forEach((c, r) => {
         const add = (id, gx, gy) => {
           if (base.has(id)) {
@@ -7187,34 +7300,16 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const narrow = useMedia("(max-width: 900px)");
     const compact = useMedia("(max-width: 640px)");
     const portrait = useMedia("(orientation: portrait)");
-    const [leftPanelOverride, setLeftPanelOverride] = useState(null);
-    const [rightPanelOverride, setRightPanelOverride] = useState(null);
-    const leftPanelUserOpen = leftPanelOverride ?? !narrow;
-    const rightPanelUserOpen = rightPanelOverride ?? !narrow;
-    const toggleLeftPanel = () => {
-      const open = !leftPanelUserOpen;
-      setLeftPanelOverride(open);
-      if (open && compact) setRightPanelOverride(false);
-    };
-    const toggleRightPanel = () => {
-      const open = !rightPanelUserOpen;
-      setRightPanelOverride(open);
-      if (open && compact) setLeftPanelOverride(false);
-    };
-    const closeDrawers = () => {
-      setLeftPanelOverride(false);
-      setRightPanelOverride(false);
-    };
-    const drawerStyle = (side) => ({
-      position: "absolute",
-      top: 0,
-      bottom: 0,
-      [side]: 0,
-      zIndex: 40,
-      width: "min(280px, 86vw)",
-      boxSizing: "border-box",
-      boxShadow: `${side === "left" ? "" : "-"}8px 0 26px rgba(0,0,0,0.28)`
-    });
+    const {
+      leftOpen: leftPanelUserOpen,
+      rightOpen: rightPanelUserOpen,
+      toggleLeft: toggleLeftPanel,
+      toggleRight: toggleRightPanel,
+      closeDrawers,
+      drawerStyle,
+      setLeftOverride: setLeftPanelOverride,
+      setRightOverride: setRightPanelOverride
+    } = usePanelState(narrow, compact);
     const [recovery, setRecovery] = useState(() => consumeHomeNav() ? null : readAutosave());
     const [launchDismissed, setLaunchDismissed] = useState(false);
     const [dirty, setDirty] = useState(false);
@@ -7229,23 +7324,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       return () => document.removeEventListener("pointerdown", onDocPointerDown);
     }, [showFileMenu]);
     const [showAbout, setShowAbout] = useState(false);
-    useEffect(() => {
-      if (!showAbout) return;
-      const onEsc = (e) => {
-        if (e.key === "Escape") setShowAbout(false);
-      };
-      window.addEventListener("keydown", onEsc);
-      return () => window.removeEventListener("keydown", onEsc);
-    }, [showAbout]);
+    useEscape(showAbout, () => setShowAbout(false));
     const [showHelp, setShowHelp] = useState(false);
-    useEffect(() => {
-      if (!showHelp) return;
-      const onEsc = (e) => {
-        if (e.key === "Escape") setShowHelp(false);
-      };
-      window.addEventListener("keydown", onEsc);
-      return () => window.removeEventListener("keydown", onEsc);
-    }, [showHelp]);
+    useEscape(showHelp, () => setShowHelp(false));
     const [rotateDismissed, setRotateDismissed] = useState(false);
     const T = dark ? DARK : LIGHT;
     const S = useMemo(() => makeStyles(T), [T]);
@@ -7305,38 +7386,17 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const [measureDraft, setMeasureDraft] = useState(null);
     const [showAngleMeasures, setShowAngleMeasures] = useState(true);
     const [loadPick, setLoadPick] = useState(null);
-    useEffect(() => {
-      if (!loadPick) return;
-      const onEsc = (e) => {
-        if (e.key === "Escape") setLoadPick(null);
-      };
-      window.addEventListener("keydown", onEsc);
-      return () => window.removeEventListener("keydown", onEsc);
-    }, [loadPick]);
+    useEscape(loadPick, () => setLoadPick(null));
     useEffect(() => {
       if (step !== "drive") setLoadPick(null);
     }, [step]);
     const [repositionJoint, setRepositionJoint] = useState(null);
-    useEffect(() => {
-      if (!repositionJoint) return;
-      const onEsc = (e) => {
-        if (e.key === "Escape") setRepositionJoint(null);
-      };
-      window.addEventListener("keydown", onEsc);
-      return () => window.removeEventListener("keydown", onEsc);
-    }, [repositionJoint]);
+    useEscape(repositionJoint, () => setRepositionJoint(null));
     useEffect(() => {
       if (!JOINT_EDIT_STEPS.has(step)) setRepositionJoint(null);
     }, [step]);
     const [jointMenu, setJointMenu] = useState(null);
-    useEffect(() => {
-      if (!jointMenu) return;
-      const onEsc = (e) => {
-        if (e.key === "Escape") setJointMenu(null);
-      };
-      window.addEventListener("keydown", onEsc);
-      return () => window.removeEventListener("keydown", onEsc);
-    }, [jointMenu]);
+    useEscape(jointMenu, () => setJointMenu(null));
     useEffect(() => {
       setJointMenu(null);
     }, [step]);
@@ -8901,22 +8961,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       e.preventDefault();
       setJointMenu({ id: hit.id, x: e.clientX, y: e.clientY });
     };
-    const [splitRatio, setSplitRatio] = useState(0.5);
+    const { splitRatio, onSplitPointerDown, onSplitPointerMove, onSplitPointerUp } = useSplitPane(0.5);
     const canvasRowRef = useRef(null);
-    const splitDragState = useRef(null);
-    const onSplitPointerDown = (e) => {
-      splitDragState.current = { sx: e.clientX, startRatio: splitRatio, w: canvasRowRef.current?.clientWidth || 1 };
-      e.currentTarget.setPointerCapture?.(e.pointerId);
-    };
-    const onSplitPointerMove = (e) => {
-      if (!splitDragState.current) return;
-      const { sx, startRatio, w } = splitDragState.current;
-      const next = startRatio + (e.clientX - sx) / w;
-      setSplitRatio(Math.min(0.85, Math.max(0.15, next)));
-    };
-    const onSplitPointerUp = () => {
-      splitDragState.current = null;
-    };
     const polyDragState = useRef(null);
     const polyPtrs = useRef(new Map());
     const polyPinch = useRef({ last: null });
@@ -12494,7 +12540,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       "div",
       {
         style: S.splitter,
-        onPointerDown: onSplitPointerDown,
+        onPointerDown: (e) => onSplitPointerDown(e, canvasRowRef),
         onPointerMove: onSplitPointerMove,
         onPointerUp: onSplitPointerUp,
         onPointerLeave: onSplitPointerUp
@@ -12696,6 +12742,22 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         legend: legendEl
       }
     ) : React.createElement("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", ...S.panelInset } }, step === "topology" && React.createElement(React.Fragment, null, tool === "pin" && React.createElement(P, null, "A ", React.createElement("b", null, "pin"), " is one click. It's the ordinary revolute joint: two bodies sharing a hinge, which removes two degrees of freedom."), tool === "slider" && React.createElement(P, null, "A ", React.createElement("b", null, "slider"), " needs two clicks: the first places it, the second sets the guide line it slides along. Ground it and the rail is fixed to the frame. Leave it free and it becomes a pin riding in a slot on another link, which you assign under ", React.createElement("b", null, "Pin-in-slot"), "."), tool === "gear" && React.createElement(React.Fragment, null, React.createElement(P, null, "A ", React.createElement("b", null, "gear"), " takes two clicks: fixed axis, then pitch radius. Then a third on the gear it ", React.createElement("b", null, "meshes with"), ", unless the radius already snapped onto one."), React.createElement(P, null, "That last click is the pair. A gear meshing with nothing removes no degree of freedom, so it's drawn amber until it's paired.")), tool === "cam" && React.createElement(React.Fragment, null, React.createElement(P, null, "A ", React.createElement("b", null, "cam"), " takes two clicks: fixed shaft, then base-circle radius (a starting size the designer can overrule). Then a third on the ", React.createElement("b", null, "follower it drives"), ": a grounded slider, or any joint on the follower arm."), React.createElement(P, null, "That last click is the pair. A cam driving nothing removes no degree of freedom, so it's drawn amber until it's paired.")), tool === "rigid" && React.createElement(React.Fragment, null, React.createElement(P, null, "Click 2-4 joints in sequence to group them into one rigid link (binary, ternary, or quaternary), then hit ", React.createElement("b", null, "Finish link"), ". Links are numbered in the order you create them. Connect every joint into the mechanism."), React.createElement("div", { style: { ...S.hint, marginBottom: 8 } }, React.createElement("b", null, "Middle-click"), " the canvas, or press ", React.createElement("b", null, "Enter"), ", to finish a link (2+ joints picked) without moving the pointer off the drawing.")), tool === "linear" && React.createElement(React.Fragment, null, React.createElement(P, null, "Click two joints to connect them with a linear spring or damper. It pulls or pushes along the line between them. Either joint may be a grounded pin, acting as a fixed anchor. It commits the instant the 2nd joint is picked. Values (stiffness, rest length, damping) are set on the Elements step."), React.createElement("div", { style: { ...S.hint, marginBottom: 8 } }, elementScopeNote)), tool === "torsional" && React.createElement(React.Fragment, null, React.createElement(P, null, "Add a torsional spring or damper between two links, or a link and the fixed frame. It reacts to the relative angle between them. Values (stiffness, rest angle, damping) are set on the Elements step."), React.createElement("div", { style: { ...S.hint, marginBottom: 8 } }, elementScopeNote)), tool === "ground" && React.createElement(P, null, "Click a joint to fix it to the frame, or click it again to release it. Grounding is what turns a chain of bars into a mechanism: without it every link is free to float, and the whole assembly has three degrees of freedom it should not. A link with every joint grounded becomes the frame (Link 1). That is optional: one or more grounded joints is enough."), joints.some((j) => j.type === "slider" && !j.ground) && React.createElement(React.Fragment, null, React.createElement("div", { style: S.secLabel }, "Pin-in-slot (rotating guide)"), React.createElement(P, null, "A free slider is a ", React.createElement("b", null, "pin riding in a slot machined into another link"), ". For example, the crank pin of a crank-shaper riding in a slotted rocker. Select the slotted link in the panel opposite. The slider's guide then rotates with it, producing Coriolis acceleration. If the link's joints do not define a line through the slider, one click adds a ", React.createElement("b", null, "guide point"), " to define it."))), step === "geometry" && React.createElement(P, null, "First set the scale from the image, then pin exact ", React.createElement("b", null, "driving dimensions"), ". Calibration only scales the displayed numbers: joints do not move, so the traced overlay stays aligned. Dimensions then refine the geometry to exact values."), step !== "solve" && step !== "topology" && step !== "geometry" && React.createElement(P, null, "Complete the steps to solve. Results appear here once the loop is assembled and driven."), step === "solve" && !solution.ok && !lastGoodSolutionRef.current && React.createElement(P, null, solveError(solution, joints)), React.createElement("div", { style: { ...S.hint, marginTop: 10, display: "flex", flexDirection: "column", gap: 6 } }, React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: "4px 12px" } }, shortcutHints.map(([key, desc]) => React.createElement("span", { key }, React.createElement("b", { style: { color: T.text } }, key), " ", desc))), React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: "4px 12px" } }, mouseHints.map(([key, desc]) => React.createElement("span", { key }, React.createElement("b", { style: { color: T.text } }, key), " ", desc)))), legendEl))))));
+  }
+
+  function SectionHeader({ label, color, style = {} }) {
+    const T = useTheme();
+    return React.createElement("div", { style: {
+      fontSize: 11,
+      letterSpacing: 1.6,
+      color: color || T.accent,
+      textTransform: "uppercase",
+      fontWeight: 700,
+      borderBottom: `2px solid ${color || T.accent}`,
+      padding: "0 2px 7px 2px",
+      marginTop: 18,
+      marginBottom: 8,
+      ...style
+    } }, label);
   }
 
   var AUTOSAVE_KEY2 = "mechanism-cam:autosave";
@@ -14093,22 +14155,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const wrapRef = useRef(null);
     const dragRef = useRef(null);
     const [size, setSize] = useState({ w: 0, h: 0 });
-    const [splitRatio, setSplitRatio] = useState(0.6);
+    const { splitRatio, onSplitPointerDown, onSplitPointerMove, onSplitPointerUp } = useSplitPane(0.6);
     const canvasRowRef = useRef(null);
-    const splitDragState = useRef(null);
-    const onSplitPointerDown = useCallback((e) => {
-      splitDragState.current = { sx: e.clientX, startRatio: splitRatio, w: canvasRowRef.current?.clientWidth || 1 };
-      e.currentTarget.setPointerCapture?.(e.pointerId);
-    }, [splitRatio]);
-    const onSplitPointerMove = useCallback((e) => {
-      if (!splitDragState.current) return;
-      const { sx, startRatio, w } = splitDragState.current;
-      const next = startRatio + (e.clientX - sx) / w;
-      setSplitRatio(Math.min(0.85, Math.max(0.15, next)));
-    }, []);
-    const onSplitPointerUp = useCallback(() => {
-      splitDragState.current = null;
-    }, []);
     const importedFit = useMemo(
       () => importedRaw ? fitMotionFourier(importedRaw, { harmonics }) : null,
       [importedRaw, harmonics]
@@ -14412,17 +14460,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const marker = theta;
     const narrow = useMedia("(max-width: 900px)");
     const S = makeCamStyles(T);
-    const secHead = (label, color) => React.createElement("div", { style: {
-      fontSize: 11,
-      letterSpacing: 1.6,
-      color,
-      textTransform: "uppercase",
-      fontWeight: 700,
-      borderBottom: `2px solid ${color}`,
-      padding: "0 2px 7px 2px",
-      marginTop: 18,
-      marginBottom: 8
-    } }, label);
+    const secHead = (label, color) => React.createElement(SectionHeader, { label, color });
     const local = {
       panel: { ...S.panel, width: leftOpen ? 250 : 30, flex: leftOpen ? "0 0 250px" : "0 0 30px", padding: leftOpen ? 12 : "8px 4px", display: "block", position: "relative", overflowX: "hidden", transition: "flex-basis .15s" },
       rpanel: { ...S.results, width: rightOpen ? 290 : 30, flex: rightOpen ? "0 0 290px" : "0 0 30px", padding: rightOpen ? 12 : "8px 4px", display: "block", position: "relative", overflowX: "hidden", transition: "flex-basis .15s" },
@@ -14822,7 +14860,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       "div",
       {
         style: S.splitter,
-        onPointerDown: onSplitPointerDown,
+        onPointerDown: (e) => onSplitPointerDown(e, canvasRowRef),
         onPointerMove: onSplitPointerMove,
         onPointerUp: onSplitPointerUp,
         onPointerLeave: onSplitPointerUp
@@ -17480,34 +17518,16 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const narrow = useMedia("(max-width: 900px)");
     const compact = useMedia("(max-width: 640px)");
     const portrait = useMedia("(orientation: portrait)");
-    const [leftPanelOverride, setLeftPanelOverride] = useState(null);
-    const [rightPanelOverride, setRightPanelOverride] = useState(null);
-    const leftPanelOpen = leftPanelOverride ?? !narrow;
-    const rightPanelOpen = rightPanelOverride ?? !narrow;
-    const toggleLeftPanel = () => {
-      const open = !leftPanelOpen;
-      setLeftPanelOverride(open);
-      if (open && compact) setRightPanelOverride(false);
-    };
-    const toggleRightPanel = () => {
-      const open = !rightPanelOpen;
-      setRightPanelOverride(open);
-      if (open && compact) setLeftPanelOverride(false);
-    };
-    const closeDrawers = () => {
-      setLeftPanelOverride(false);
-      setRightPanelOverride(false);
-    };
-    const drawerStyle = (side) => ({
-      position: "absolute",
-      top: 0,
-      bottom: 0,
-      [side]: 0,
-      zIndex: 40,
-      width: "min(280px, 86vw)",
-      boxSizing: "border-box",
-      boxShadow: `${side === "left" ? "" : "-"}8px 0 26px rgba(0,0,0,0.28)`
-    });
+    const {
+      leftOpen: leftPanelOpen,
+      rightOpen: rightPanelOpen,
+      toggleLeft: toggleLeftPanel,
+      toggleRight: toggleRightPanel,
+      closeDrawers,
+      drawerStyle,
+      setLeftOverride: setLeftPanelOverride,
+      setRightOverride: setRightPanelOverride
+    } = usePanelState(narrow, compact);
     const [rotateDismissed, setRotateDismissed] = useState(false);
     const suggestRotate = compact && portrait && !rotateDismissed;
     const [showMenu, setShowMenu] = useState(false);
@@ -19878,17 +19898,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     useEffect(() => {
       if (!activeResult.ok) setPlaying(false);
     }, [activeResult.ok]);
-    const secHead = (label, color) => React.createElement("div", { style: {
-      fontSize: 11,
-      letterSpacing: 1.6,
-      color,
-      textTransform: "uppercase",
-      fontWeight: 700,
-      borderBottom: `2px solid ${color}`,
-      padding: "0 2px 7px 2px",
-      marginTop: 18,
-      marginBottom: 8
-    } }, label);
+    const secHead = (label, color) => React.createElement(SectionHeader, { label, color });
     const underlineHeader = (active, color) => ({
       fontSize: 10,
       letterSpacing: 1.2,
