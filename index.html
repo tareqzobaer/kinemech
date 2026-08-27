@@ -60,7 +60,7 @@
   "Cam design using rise-dwell-fall profiles or imported motion",
   "Live mechanism animation and GIF export"
   ],
-  "softwareVersion": "2.0.0",
+  "softwareVersion": "2.1.0",
   "offers": {
     "@type": "Offer",
     "price": "0",
@@ -14607,11 +14607,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         }
       },
       "Discard"
-    ))), React.createElement("div", { style: { display: leftOpen ? "contents" : "none" } }, React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 12 } }, React.createElement(
+    ))), React.createElement("div", { style: { display: leftOpen ? "contents" : "none" } }, React.createElement("div", { style: { display: "flex", gap: 2, marginBottom: 12, padding: 3, borderRadius: 8, background: T.panel, border: `1px solid ${T.border2}` } }, React.createElement(
       "button",
       {
         className: "btn" + (progSource === "segments" ? " on" : ""),
-        style: { flex: 1, fontSize: 11 },
+        style: { flex: 1, fontSize: 11, border: "none", background: progSource === "segments" ? void 0 : "transparent" },
         onClick: () => setProgSource("segments")
       },
       "Segments"
@@ -14619,7 +14619,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       "button",
       {
         className: "btn" + (progSource === "imported" ? " on" : ""),
-        style: { flex: 1, fontSize: 11 },
+        style: { flex: 1, fontSize: 11, border: "none", background: progSource === "imported" ? void 0 : "transparent" },
         onClick: () => setProgSource("imported")
       },
       "Imported"
@@ -17133,6 +17133,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   var ResetIcon = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M3 12a9 9 0 1 0 2.13-5.82" }), React.createElement("path", { d: "M3 4v5h5" }));
   var ConstructionIcon = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M12 3v2.2" }), React.createElement("path", { d: "M12 5.2 5 20M12 5.2l7 14.8" }), React.createElement("path", { d: "M5 20h14" }));
   var GridIcon = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "1.5" }), React.createElement("path", { d: "M3 9h18M3 15h18M9 3v18M15 3v18" }));
+  var DrawIcon = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M4 18c3-8 6-12 9-12s3 9 7 9" }), React.createElement("circle", { cx: "4", cy: "18", r: "1.6", fill: "currentColor", stroke: "none" }), React.createElement("circle", { cx: "13", cy: "6", r: "1.6", fill: "currentColor", stroke: "none" }), React.createElement("circle", { cx: "20", cy: "15", r: "1.6", fill: "currentColor", stroke: "none" }));
   var MoreIcon2 = () => React.createElement("svg", { width: "15", height: "15", viewBox: "0 0 24 24", fill: "none" }, React.createElement("circle", { cx: "5", cy: "12", r: "1.7", fill: "currentColor", stroke: "none" }), React.createElement("circle", { cx: "12", cy: "12", r: "1.7", fill: "currentColor", stroke: "none" }), React.createElement("circle", { cx: "19", cy: "12", r: "1.7", fill: "currentColor", stroke: "none" }));
   var panelCommon2 = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
   var PanelLeftCloseIcon2 = ({ size = 17 }) => React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", "aria-hidden": "true", ...panelCommon2 }, React.createElement("rect", { x: "3", y: "5", width: "18", height: "14", rx: "2" }), React.createElement("rect", { x: "4", y: "6", width: "4", height: "12", rx: "1", fill: "currentColor", stroke: "none" }), React.createElement("path", { d: "M17 9.5 13.5 12l3.5 2.5" }));
@@ -17488,6 +17489,26 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const [pathEffort, setPathEffort] = useState("normal");
     const [pathMatch, setPathMatch] = useState(null);
     const pathFileRef = useRef(null);
+    const [pathDraft, setPathDraft] = useState(null);
+    const [pathDraftClosed, setPathDraftClosed] = useState(false);
+    const [pathDrawArmed, setPathDrawArmed] = useState(false);
+    const drawFinalizedRef = useRef(false);
+    const finalizePathDraft = (closedOverride) => {
+      if (!pathDraft || pathDraft.length < 2) return;
+      const closed = closedOverride !== void 0 ? closedOverride : pathDraftClosed;
+      const dense = resamplePath(makePathDoc(pathDraft, { closed }), 200, { spline: true });
+      if (!dense) return;
+      drawFinalizedRef.current = true;
+      setPathTarget({ ...dense, meta: { source: "draw", label: "Hand-drawn spline" } });
+      setPathMatch(null);
+      setPathDraft(null);
+      setPathDrawArmed(false);
+    };
+    const cancelPathDraft = () => {
+      setPathDraft(null);
+      setPathDrawArmed(false);
+    };
+    useEscape(pathDraft !== null, cancelPathDraft);
     const [optBusy, setOptBusy] = useState(false);
     const [optProgress, setOptProgress] = useState(0);
     const optRef = useRef(null);
@@ -17988,7 +18009,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         }
       } else if (mode === "path") {
         if (pathSub === "points") pathPts.slice(0, pathN).forEach((p) => pts.push({ x: p.x, y: p.y }));
-        if (pathTargetDoc) pathTargetDoc.pts.forEach((p) => pts.push({ x: p.x, y: p.y }));
+        if (pathTargetDoc && !drawFinalizedRef.current) pathTargetDoc.pts.forEach((p) => pts.push({ x: p.x, y: p.y }));
         if (pathActive.ok) {
           pts.push(pathActive.O2, pathActive.O4);
           if (pathActive.Ws) pathActive.Ws.forEach((w) => pts.push(w));
@@ -18113,7 +18134,13 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         if (P3 && vdist(world, P3) < tol) return { kind: "P" };
       }
       if (mode === "path") {
-        if (pathSub !== "points") return null;
+        if (pathSub === "target") {
+          if (!pathDraft) return null;
+          for (let i = 0; i < pathDraft.length; i++) {
+            if (vdist(world, pathDraft[i]) < tol) return { kind: "draftPt", idx: i };
+          }
+          return null;
+        }
         for (let i = 0; i < pathN; i++) {
           if (pathResult.ok) {
             if (vdist(world, pathResult.Ws[i]) < tol) return { kind: "pW", idx: i };
@@ -18152,17 +18179,34 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       pathPts,
       pathN,
       pathPhi,
-      pathArmLen
+      pathArmLen,
+      pathSub,
+      pathDraft
     ]);
+    const closeDraftRef = useRef(null);
     const onDown = (e) => {
       const rect = canvasRef.current.getBoundingClientRect();
       const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
       const world = toWorld(sx, sy);
+      if (pathDraft && e.button === 1) {
+        e.preventDefault();
+        if (pathDraft.length >= 2) finalizePathDraft();
+        return;
+      }
       const h = pickHandle(world);
       if (h) {
         setDrag({ ...h });
+        closeDraftRef.current = pathDrawArmed && h.kind === "draftPt" && h.idx === 0 && pathDraft.length >= 3 ? { sx, sy } : null;
+      } else if (pathDrawArmed) {
+        if (snapToGrid) {
+          world.x = Math.round(world.x / GRID_SNAP_STEP) * GRID_SNAP_STEP;
+          world.y = Math.round(world.y / GRID_SNAP_STEP) * GRID_SNAP_STEP;
+        }
+        setPathDraft((arr) => [...arr, world]);
+        closeDraftRef.current = null;
       } else {
         setDrag({ kind: "pan", sx, sy, panX: view.panX, panY: view.panY });
+        closeDraftRef.current = null;
       }
       e.currentTarget.setPointerCapture(e.pointerId);
     };
@@ -18215,6 +18259,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           const local = vrot(vsub(world, { x: p.x, y: p.y }), -rad(pathPhi[drag.idx] ?? 0));
           if (drag.kind === "pW") setPathPivW(local);
           else setPathPivZ(local);
+        } else if (drag.kind === "draftPt") {
+          setPathDraft((arr) => arr.map((p, i) => i === drag.idx ? { x: world.x, y: world.y } : p));
         }
       });
     };
@@ -18223,6 +18269,13 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         cancelAnimationFrame(moveRafRef.current);
         moveRafRef.current = null;
       }
+      if (closeDraftRef.current && e) {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const ex = e.clientX - rect.left, ey = e.clientY - rect.top;
+        const dx = ex - closeDraftRef.current.sx, dy = ey - closeDraftRef.current.sy;
+        if (dx * dx + dy * dy < 36) finalizePathDraft(true);
+      }
+      closeDraftRef.current = null;
       setDrag(null);
       if (e && e.currentTarget) try {
         e.currentTarget.releasePointerCapture(e.pointerId);
@@ -18319,6 +18372,51 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           ctx.beginPath();
           ctx.arc(SX(tp[i].x), SY(tp[i].y), 1.6, 0, TAU4);
           ctx.fill();
+        }
+      }
+      if (mode === "path" && pathDraft) {
+        if (pathDraft.length > 1) {
+          const preview = resamplePath(makePathDoc(pathDraft, { closed: pathDraftClosed }), 96, { spline: true });
+          if (preview) {
+            const pp = preview.pts;
+            ctx.strokeStyle = T.targetCol;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(SX(pp[0].x), SY(pp[0].y));
+            for (let i = 1; i < pp.length; i++) ctx.lineTo(SX(pp[i].x), SY(pp[i].y));
+            if (pathDraftClosed) ctx.closePath();
+            ctx.stroke();
+          }
+        }
+        for (let i = 0; i < pathDraft.length; i++) {
+          const p = pathDraft[i];
+          const hot = hover && hover.kind === "draftPt" && hover.idx === i;
+          const s = hot ? 8 : 6.5;
+          ctx.beginPath();
+          ctx.moveTo(SX(p.x), SY(p.y) - s);
+          ctx.lineTo(SX(p.x) + s, SY(p.y));
+          ctx.lineTo(SX(p.x), SY(p.y) + s);
+          ctx.lineTo(SX(p.x) - s, SY(p.y));
+          ctx.closePath();
+          ctx.fillStyle = T.targetCol;
+          ctx.strokeStyle = T.canvasBg;
+          ctx.lineWidth = 2;
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = T.targetCol;
+          ctx.font = "700 12px ui-monospace,monospace";
+          ctx.fillText(`${i + 1}`, SX(p.x) + 10, SY(p.y) + 14);
+        }
+        if (pathDrawArmed && pathDraft.length >= 3) {
+          const p0 = pathDraft[0];
+          ctx.strokeStyle = T.targetCol;
+          ctx.lineWidth = 1.4;
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.arc(SX(p0.x), SY(p0.y), 12, 0, TAU4);
+          ctx.stroke();
+          ctx.setLineDash([]);
         }
       }
       if (couplerCurve) {
@@ -19577,6 +19675,20 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       window.addEventListener("keydown", onKey);
       return () => window.removeEventListener("keydown", onKey);
     }, [onClose, showMenu, showHelp, showAbout, suggestRotate]);
+    useEffect(() => {
+      if (!pathDraft) return;
+      const onKey = (e) => {
+        if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+        const t = e.target;
+        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+        if (e.key === "Enter" && pathDraft.length >= 2) {
+          e.preventDefault();
+          finalizePathDraft();
+        }
+      };
+      window.addEventListener("keydown", onKey);
+      return () => window.removeEventListener("keydown", onKey);
+    }, [pathDraft, pathDraftClosed]);
     const downloadGif = useCallback(async () => {
       const ok = mode === "guidance" ? guidanceResult.ok : mode === "path" ? pathActive.ok : mode === "function" ? functionResult.ok : mode === "dwell" ? !!(dwellResult && dwellResult.result.ok) : mode === "slider" ? sliderResult.ok : false;
       if (!ok || gifBusy) return;
@@ -19831,6 +19943,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       loadedNotEditedRef.current = true;
       setMode("path");
       setPathSub("target");
+      drawFinalizedRef.current = false;
       setPathTarget(doc2);
       setPathMatch(null);
       setTheta2(0);
@@ -19847,6 +19960,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           flash("Could not read that as a path. Expected .kinepath JSON or x,y[,theta] CSV.", 4e3);
           return;
         }
+        drawFinalizedRef.current = false;
         setPathTarget(doc2);
         setPathSub("target");
         flash(`Loaded ${doc2.pts.length} target points${isTimed(doc2) ? " (timed)" : ""} \u2713`, 2800);
@@ -19858,6 +19972,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       if (!doc2) return;
       setMode("path");
       setPathSub("target");
+      drawFinalizedRef.current = false;
       setPathTarget(doc2);
       setPathMatch(null);
       setTheta2(0);
@@ -20124,11 +20239,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         }
       },
       "Alternate (W/Z)"
-    )), !altPivots ? React.createElement(React.Fragment, null, React.createElement("div", { style: S.secLabel }, "Coupler length (A\u2013B)"), React.createElement(RangeNum, { v: couplerLen, on: (v) => setCouplerLen(Math.max(0.01, v)), min: "0.5", max: "5", step: "0.05" })) : React.createElement(React.Fragment, null, React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, marginBottom: 10, lineHeight: 1.4 } }, "The crank/rocker attach at ", React.createElement("b", null, "any"), " two points fixed to the coupler body, not just A and B. Same prescribed motion, different ground pivots and link ratios. Useful for fixing a bad Grashof condition or transmission angle. Coordinates are local to the body (origin A, x-axis along \u2220)."), React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, marginBottom: 4 } }, "Pivot W: crank attachment"), React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 } }, React.createElement(LblNum2, { T, label: "x (local)", v: pivW.x, step: lenStep(couplerLen), on: (v) => setPivW((w) => ({ ...w, x: v })) }), React.createElement(LblNum2, { T, label: "y (local)", v: pivW.y, step: lenStep(couplerLen), on: (v) => setPivW((w) => ({ ...w, y: v })) })), React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, marginBottom: 4 } }, "Pivot Z: rocker attachment"), React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 } }, React.createElement(LblNum2, { T, label: "x (local)", v: pivZ.x, step: lenStep(couplerLen), on: (v) => setPivZ((z) => ({ ...z, x: v })) }), React.createElement(LblNum2, { T, label: "y (local)", v: pivZ.y, step: lenStep(couplerLen), on: (v) => setPivZ((z) => ({ ...z, y: v })) })), guidanceResult.ok && React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, marginBottom: 10 } }, "Coupler length (W\u2013Z): ", fmt2(guidanceResult.b)))), secHead("Posture coordinates", T.posCol), React.createElement("div", { style: { marginBottom: 12 } }, postures.slice(0, numPos).map((p, i) => React.createElement("div", { key: i, style: S.postureCard }, React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 6 } }, React.createElement("span", { style: { color: T.posCol, fontWeight: 700, fontSize: 11.5 } }, "Position ", i + 1)), React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 5 } }, React.createElement(LblNum2, { T, label: "A\u2093", v: p.A.x, step: lenStep(couplerLen), on: (v) => setPostures((arr) => arr.map((q, j) => j === i ? { ...q, A: { ...q.A, x: v } } : q)) }), React.createElement(LblNum2, { T, label: "A\u1D67", v: p.A.y, step: lenStep(couplerLen), on: (v) => setPostures((arr) => arr.map((q, j) => j === i ? { ...q, A: { ...q.A, y: v } } : q)) }), React.createElement(LblNum2, { T, label: "\u2220\xB0", v: deg2(p.ang), on: (v) => setPostures((arr) => arr.map((q, j) => j === i ? { ...q, ang: rad(v) } : q)) }))))), secHead("Assembly circuit", T.accentBlue), React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 6 } }, React.createElement("button", { className: "btn" + (circuit === 1 ? " on" : ""), style: { flex: 1 }, onClick: () => setCircuit(1) }, "Open"), React.createElement("button", { className: "btn" + (circuit === -1 ? " on" : ""), style: { flex: 1 }, onClick: () => setCircuit(-1) }, "Crossed"))) : mode === "path" ? React.createElement(React.Fragment, null, React.createElement("div", { style: S.stepTitle }, "Path generation"), React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 12 } }, React.createElement(
+    )), !altPivots ? React.createElement(React.Fragment, null, React.createElement("div", { style: S.secLabel }, "Coupler length (A\u2013B)"), React.createElement(RangeNum, { v: couplerLen, on: (v) => setCouplerLen(Math.max(0.01, v)), min: "0.5", max: "5", step: "0.05" })) : React.createElement(React.Fragment, null, React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, marginBottom: 10, lineHeight: 1.4 } }, "The crank/rocker attach at ", React.createElement("b", null, "any"), " two points fixed to the coupler body, not just A and B. Same prescribed motion, different ground pivots and link ratios. Useful for fixing a bad Grashof condition or transmission angle. Coordinates are local to the body (origin A, x-axis along \u2220)."), React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, marginBottom: 4 } }, "Pivot W: crank attachment"), React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 } }, React.createElement(LblNum2, { T, label: "x (local)", v: pivW.x, step: lenStep(couplerLen), on: (v) => setPivW((w) => ({ ...w, x: v })) }), React.createElement(LblNum2, { T, label: "y (local)", v: pivW.y, step: lenStep(couplerLen), on: (v) => setPivW((w) => ({ ...w, y: v })) })), React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, marginBottom: 4 } }, "Pivot Z: rocker attachment"), React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 } }, React.createElement(LblNum2, { T, label: "x (local)", v: pivZ.x, step: lenStep(couplerLen), on: (v) => setPivZ((z) => ({ ...z, x: v })) }), React.createElement(LblNum2, { T, label: "y (local)", v: pivZ.y, step: lenStep(couplerLen), on: (v) => setPivZ((z) => ({ ...z, y: v })) })), guidanceResult.ok && React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, marginBottom: 10 } }, "Coupler length (W\u2013Z): ", fmt2(guidanceResult.b)))), secHead("Posture coordinates", T.posCol), React.createElement("div", { style: { marginBottom: 12 } }, postures.slice(0, numPos).map((p, i) => React.createElement("div", { key: i, style: S.postureCard }, React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 6 } }, React.createElement("span", { style: { color: T.posCol, fontWeight: 700, fontSize: 11.5 } }, "Position ", i + 1)), React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 5 } }, React.createElement(LblNum2, { T, label: "A\u2093", v: p.A.x, step: lenStep(couplerLen), on: (v) => setPostures((arr) => arr.map((q, j) => j === i ? { ...q, A: { ...q.A, x: v } } : q)) }), React.createElement(LblNum2, { T, label: "A\u1D67", v: p.A.y, step: lenStep(couplerLen), on: (v) => setPostures((arr) => arr.map((q, j) => j === i ? { ...q, A: { ...q.A, y: v } } : q)) }), React.createElement(LblNum2, { T, label: "\u2220\xB0", v: deg2(p.ang), on: (v) => setPostures((arr) => arr.map((q, j) => j === i ? { ...q, ang: rad(v) } : q)) }))))), secHead("Assembly circuit", T.accentBlue), React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 6 } }, React.createElement("button", { className: "btn" + (circuit === 1 ? " on" : ""), style: { flex: 1 }, onClick: () => setCircuit(1) }, "Open"), React.createElement("button", { className: "btn" + (circuit === -1 ? " on" : ""), style: { flex: 1 }, onClick: () => setCircuit(-1) }, "Crossed"))) : mode === "path" ? React.createElement(React.Fragment, null, React.createElement("div", { style: S.stepTitle }, "Path generation"), React.createElement("div", { style: { display: "flex", gap: 2, marginBottom: 12, padding: 3, borderRadius: 8, background: T.panel, border: `1px solid ${T.border2}` } }, React.createElement(
       "button",
       {
         className: "btn" + (pathSub === "points" ? " on" : ""),
-        style: { flex: 1, fontSize: 11 },
+        style: { flex: 1, fontSize: 11, border: "none", background: pathSub === "points" ? void 0 : "transparent" },
         onClick: () => setPathSub("points"),
         disabled: optBusy
       },
@@ -20137,7 +20252,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       "button",
       {
         className: "btn" + (pathSub === "target" ? " on" : ""),
-        style: { flex: 1, fontSize: 11 },
+        style: { flex: 1, fontSize: 11, border: "none", background: pathSub === "target" ? void 0 : "transparent" },
         onClick: () => setPathSub("target"),
         disabled: optBusy
       },
@@ -20159,11 +20274,25 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       {
         className: "btn",
         style: { flex: 1 },
-        disabled: optBusy,
+        disabled: optBusy || pathTarget && pathTarget.meta.source === "draw",
         onClick: () => pathFileRef.current && pathFileRef.current.click(),
-        title: "Load a .kinepath document or an x,y[,theta] CSV"
+        title: pathTarget && pathTarget.meta.source === "draw" ? "Clear the drawn curve first to import one instead" : "Load a .kinepath document or an x,y[,theta] CSV"
       },
       "Import\u2026"
+    ), React.createElement(
+      "button",
+      {
+        className: "btn",
+        style: { flex: 1 },
+        disabled: optBusy || pathTarget && pathTarget.meta.source !== "draw",
+        onClick: () => {
+          setPathDraft([]);
+          setPathDraftClosed(false);
+          setPathDrawArmed(true);
+        },
+        title: pathTarget && pathTarget.meta.source !== "draw" ? "Clear the imported curve first to draw one instead" : "Click points on the canvas and smooth them into a spline"
+      },
+      "Draw"
     ), React.createElement(
       "button",
       {
@@ -20176,7 +20305,44 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         }
       },
       "Clear"
-    )), pathTarget ? React.createElement(React.Fragment, null, React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, marginBottom: 10, lineHeight: 1.4 } }, pathTarget.pts.length, " points in", pathTarget.meta.source === "analyzer" ? " from the analyzer" : "", isTimed(pathTarget) ? ", timed" : ", untimed", pathTarget.units ? ` \xB7 ${fmt2(pathTarget.units.scaleFactor, 4)} ${pathTarget.units.unitLabel}/unit` : "", ".", " ", "Resampled to ", pathTargetDoc ? pathTargetDoc.pts.length : 0, " evenly spaced along its length."), React.createElement("div", { style: S.secLabel }, "Resample to"), React.createElement(
+    )), pathDraft !== null ? React.createElement(React.Fragment, null, React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, marginBottom: 10, lineHeight: 1.4 } }, pathDraft.length, " point", pathDraft.length === 1 ? "" : "s", " placed. Click the canvas to add more, drag any of them to adjust", pathDraft.length >= 3 ? ", or click point 1 again to close the loop and finish" : "", ". Middle-click or Enter finishes too, same as Done below."), React.createElement(
+      "button",
+      {
+        className: "btn" + (pathDraftClosed ? " on" : ""),
+        style: { width: "100%", marginBottom: 10 },
+        onClick: () => setPathDraftClosed((c) => !c),
+        title: "A closed loop draws its curve back to the first point"
+      },
+      pathDraftClosed ? "Closed loop \u2713" : "Open curve"
+    ), React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 6 } }, React.createElement(
+      "button",
+      {
+        className: "btn",
+        style: { flex: 1 },
+        disabled: !pathDraft.length,
+        onClick: () => setPathDraft((arr) => arr.slice(0, -1))
+      },
+      "Undo point"
+    ), React.createElement(
+      "button",
+      {
+        className: "btn",
+        style: { flex: 1 },
+        disabled: !pathDraft.length,
+        onClick: () => setPathDraft([])
+      },
+      "Clear"
+    )), React.createElement("div", { style: { display: "flex", gap: 6 } }, React.createElement("button", { className: "btn", style: { flex: 1 }, onClick: cancelPathDraft }, "Cancel"), React.createElement(
+      "button",
+      {
+        className: "btn pri",
+        style: { flex: 1 },
+        disabled: pathDraft.length < 2,
+        onClick: finalizePathDraft,
+        title: "Smooth these points into a spline and use it as the target curve"
+      },
+      "Done"
+    ))) : pathTarget ? React.createElement(React.Fragment, null, React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, marginBottom: 10, lineHeight: 1.4 } }, pathTarget.pts.length, " points in", pathTarget.meta.source === "analyzer" ? " from the analyzer" : pathTarget.meta.source === "draw" ? " from your drawing" : "", isTimed(pathTarget) ? ", timed" : ", untimed", pathTarget.units ? ` \xB7 ${fmt2(pathTarget.units.scaleFactor, 4)} ${pathTarget.units.unitLabel}/unit` : "", ".", " ", "Resampled to ", pathTargetDoc ? pathTargetDoc.pts.length : 0, " evenly spaced along its length."), React.createElement("div", { style: S.secLabel }, "Resample to"), React.createElement(
       RangeNum,
       {
         v: pathResample,
@@ -20429,7 +20595,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       "canvas",
       {
         ref: canvasRef,
-        style: { ...S.canvas, cursor: drag ? drag.kind === "pan" ? "grabbing" : "crosshair" : hover ? "crosshair" : "grab" },
+        style: { ...S.canvas, cursor: drag ? drag.kind === "pan" ? "grabbing" : "crosshair" : hover || pathDrawArmed ? "crosshair" : "grab" },
         onPointerDown: onDown,
         onPointerMove: onMove,
         onPointerUp: onUp,
@@ -20465,9 +20631,18 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         id: "reset",
         icon: React.createElement(ResetIcon, null),
         on: false,
-        label: mode === "path" ? "Reset precision points" : "Reset postures",
-        tip: mode === "path" ? "Put the precision points back where they started" : "Put the postures back where they started",
-        click: resetPostures
+
+        label: mode === "path" ? pathSub === "target" ? "Clear target curve" : "Reset precision points" : "Reset postures",
+        tip: mode === "path" ? pathSub === "target" ? pathDraft ? "Clear the points drawn so far" : "Clear the target curve" : "Put the precision points back where they started" : "Put the postures back where they started",
+        click: () => {
+          if (mode === "path" && pathSub === "target") {
+            if (pathDraft) setPathDraft([]);
+            else {
+              setPathTarget(null);
+              setPathMatch(null);
+            }
+          } else resetPostures();
+        }
       },
       {
         id: "construction",
@@ -20484,7 +20659,24 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         label: "Snap to grid",
         tip: "Round every dragged point to the nearest grid division",
         click: () => setSnapToGrid((s) => !s)
-      }
+      },
+
+      ...mode === "path" && pathSub === "target" && !(pathTarget && pathTarget.meta.source !== "draw") ? [
+        {
+          id: "draw",
+          icon: React.createElement(DrawIcon, null),
+          on: pathDrawArmed,
+          label: pathDraft ? pathDrawArmed ? "Pause drawing" : "Resume drawing" : "Draw",
+          tip: "Click points on the canvas and smooth them into a spline",
+          click: () => {
+            if (!pathDraft) {
+              setPathDraft([]);
+              setPathDraftClosed(false);
+              setPathDrawArmed(true);
+            } else setPathDrawArmed((a) => !a);
+          }
+        }
+      ] : []
     ].map((t) => (
 
       React.createElement("div", { key: t.id, style: { position: "relative", display: "flex" } }, React.createElement(
