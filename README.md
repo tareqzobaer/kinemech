@@ -1,4 +1,4 @@
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21843047.svg)](https://doi.org/10.5281/zenodo.21843047)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21843046.svg)](https://doi.org/10.5281/zenodo.21843046)
 
 ![KineMech — planar mechanism analysis and synthesis](og-image.png)
 
