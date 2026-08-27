@@ -3,10 +3,20 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+
+  (function () {
+    try {
+      var v = localStorage.getItem("mechanism-analyzer:dark");
+      var dark = v === null ? false : v === "1";
+      if (dark) document.documentElement.setAttribute("data-theme", "dark");
+    } catch (e) {}
+  })();
+</script>
 <title>KineMech - Planar Mechanism Analysis &amp; Synthesis</title>
 <meta name="description" content="Build and analyze planar linkages online. Solve position, velocity, acceleration, and kinetostatic forces, or synthesize new four-bar and slider-crank designs." />
 <meta name="IE_RM_OFF" content="true" />
-<meta name="keywords" content="kinemech, planar mechanism, linkage synthesis, mechanism synthesis, four-bar linkage simulator, slider-crank analysis, Coriolis acceleration, kinetostatics" />
+<meta name="keywords" content="kinemech, planar mechanism, planar mechanism analyzer, linkage synthesis, mechanism synthesis, four-bar linkage simulator, slider-crank analysis, Coriolis acceleration, kinetostatics, cam profile, mechanism animation" />
 <meta name="author" content="Tareq Zobaer" />
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
 <meta name="theme-color" content="#2f9e6e" />
@@ -174,6 +184,12 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     html[data-theme=dark] ::-webkit-scrollbar-thumb:hover { background: #3a4763; }
   }
 
+  html[data-theme=dark] #boot { color: #7c8aa8; }
+  html[data-theme=dark] #boot .boot-title { color: #5be7ab; }
+  html[data-theme=dark] #boot .boot-detail b { color: #e6ebf5; }
+  html[data-theme=dark] #boot .boot-spinner { border-color: #283246; border-top-color: #5be7ab; }
+  html[data-theme=dark] #boot.boot-failed .boot-title { color: #e0556b; }
+
   @keyframes stepFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
   .step-fade { animation: stepFadeIn .22s ease both; }
 
@@ -235,7 +251,22 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   </div>
 </noscript>
 <script>
-
+  // Suppresses the browser's native right-click menu everywhere on the page.
+  // Plain vanilla JS at the document level (not React) so it's in effect for
+  // every one of the three tools' builds, before and regardless of whether
+  // the app has mounted yet. React's own onContextMenu handlers (the main
+  // canvas's joint menu — App.jsx's onCanvasContextMenu — and its backdrop)
+  // are attached further down the tree and always run first during bubbling,
+  // so this only ever suppresses the native menu in spots nothing else has
+  // claimed the right-click for; it never stops those handlers from doing
+  // their own thing.
+  //
+  // Text-editable fields are the one blanket exception: a numeric/text input
+  // never defines its own right-click behaviour, but the browser's native
+  // Cut/Copy/Paste menu on one is a standing platform affordance, not
+  // decoration — pasting a copied number into a dimension or stiffness field
+  // is a real workflow, so it's left alone rather than suppressed along with
+  // everything else.
   document.addEventListener("contextmenu", function (e) {
     var t = e.target;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
@@ -4080,13 +4111,17 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       overflowY: "auto",
       display: "flex",
       flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 18,
-      padding: 28,
       boxSizing: "border-box",
       background: T.bg,
       fontFamily: "ui-monospace,SFMono-Regular,Menlo,monospace"
+    } }, React.createElement("div", { style: {
+      flex: "1 0 auto",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 18,
+      padding: 28
     } }, React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 11 } }, React.createElement(BrandMark, { size: 34 }), React.createElement("div", null, React.createElement("div", { style: { fontSize: 16, fontWeight: 700, letterSpacing: 2, color: T.accent } }, "KINEMECH"), React.createElement("div", { style: { fontSize: 11, color: T.textSub, letterSpacing: 0.4, marginTop: 2 } }, onSynthesize ? "Planar Mechanism Analysis & Synthesis" : "Planar Kinematics & Kinetostatics"))), React.createElement("div", { style: { fontSize: 12.5, color: T.textSub, textAlign: "center", maxWidth: "34em", lineHeight: 1.5 } }, onSynthesize ? "Start from a mechanism you already have, or design one from what it needs to do." : "Start from a mechanism you already have. Trace it, load it, or place its joints by hand."), React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", width: "100%" } }, React.createElement(
       LaunchCard,
       {
@@ -4129,16 +4164,13 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       },
       React.createElement("option", { value: "", disabled: true }, "Load a worked example\u2026"),
       presets.map((p) => React.createElement("option", { key: p.name, value: p.name, title: p.blurb }, p.name))
-    )), React.createElement("div", { style: {
-      position: "absolute",
-      bottom: 14,
-      left: 0,
-      right: 0,
+    ))), React.createElement("div", { style: {
+      flex: "0 0 auto",
       textAlign: "center",
+      padding: "0 0 14px",
       fontSize: 10,
       letterSpacing: 0.3,
-      color: T.textMuted,
-      pointerEvents: "none"
+      color: T.textMuted
     } }, "\xA9 Tareq Zobaer | 2026"));
   };
   var AboutModal = ({ onClose, onSynthesize }) => {
@@ -13871,7 +13903,6 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   var ic = { fill: "none", stroke: "currentColor", strokeWidth: 2.3, strokeLinecap: "round", strokeLinejoin: "round" };
   var SunIcon = () => React.createElement("svg", { width: "13", height: "13", viewBox: "0 0 24 24", ...ic }, React.createElement("circle", { cx: "12", cy: "12", r: "4.2" }), React.createElement("path", { d: "M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4" }));
   var MoonIcon = () => React.createElement("svg", { width: "13", height: "13", viewBox: "0 0 24 24", ...ic }, React.createElement("path", { d: "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" }));
-  var BackIcon = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.4", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M15 5 L8 12 L15 19" }));
   var PlayIcon = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "currentColor", stroke: "none" }, React.createElement("path", { d: "M7 4.5v15l12-7.5z" }));
   var PauseIcon = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "currentColor", stroke: "none" }, React.createElement("rect", { x: "6", y: "4.5", width: "4", height: "15", rx: "1" }), React.createElement("rect", { x: "14", y: "4.5", width: "4", height: "15", rx: "1" }));
   var GifIcon = () => React.createElement("svg", { width: "15", height: "15", viewBox: "0 0 24 24" }, React.createElement("text", { x: "12", y: "17", fontSize: "16", fontWeight: "700", letterSpacing: "-1.1", textAnchor: "middle", fill: "currentColor" }, "GIF"));
@@ -14466,21 +14497,14 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       rpanel: { ...S.results, width: rightOpen ? 290 : 30, flex: rightOpen ? "0 0 290px" : "0 0 30px", padding: rightOpen ? 12 : "8px 4px", display: "block", position: "relative", overflowX: "hidden", transition: "flex-basis .15s" },
       seg: { border: `1px solid ${T.border2}`, borderRadius: 5, padding: 8, marginBottom: 7, background: T.bg }
     };
-    return React.createElement(ThemeContext.Provider, { value: T }, React.createElement("div", { style: S.root }, React.createElement("header", { style: { ...S.head, ...narrow ? { padding: "8px 10px", gap: 8, flexWrap: "wrap", rowGap: 8 } : null } }, React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" } }, onClose && React.createElement(
-      "button",
-      {
-        className: "btn",
-        onClick: onClose,
-        title: "Back to the analyzer (B)",
-        "aria-label": "Back to the analyzer",
-        style: { display: "flex", alignItems: "center", padding: "7px 9px", flexShrink: 0 }
-      },
-      React.createElement(BackIcon, null)
-    ), React.createElement(
+    return React.createElement(ThemeContext.Provider, { value: T }, React.createElement("div", { style: S.root }, React.createElement("header", { style: { ...S.head, ...narrow ? { padding: "8px 10px", gap: 8, flexWrap: "wrap", rowGap: 8 } : null } }, React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" } }, React.createElement(
       "button",
       {
         type: "button",
-        onClick: () => window.location.reload(),
+        onClick: () => {
+          markHomeNav();
+          window.location.reload();
+        },
         title: "Home (reloads KineMech)",
         "aria-label": "Home (reloads KineMech)",
         style: {
@@ -17126,7 +17150,6 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   var Row2 = ({ k, v, T }) => React.createElement("div", { style: { display: "flex", padding: "3px 0", fontSize: 12, gap: 8 } }, React.createElement("span", { style: { color: T.textSub, flex: "0 0 56%", minWidth: 0 } }, k), React.createElement("span", { style: { color: T.resVal, fontWeight: 600, flex: "1 1 44%", minWidth: 0, textAlign: "right" } }, v));
   var SunIcon2 = () => React.createElement("svg", { width: "13", height: "13", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.3", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("circle", { cx: "12", cy: "12", r: "4.2" }), React.createElement("path", { d: "M12 1.8v2.4M12 19.8v2.4M4.3 4.3l1.7 1.7M18 18l1.7 1.7M1.8 12h2.4M19.8 12h2.4M4.3 19.7l1.7-1.7M18 6l1.7-1.7" }));
   var MoonIcon2 = () => React.createElement("svg", { width: "12.5", height: "12.5", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.3", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" }));
-  var BackIcon2 = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.4", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M15 5 L8 12 L15 19" }));
   var PlayIcon2 = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "currentColor", stroke: "none" }, React.createElement("path", { d: "M8 5v14l11-7-11-7Z" }));
   var PauseIcon2 = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round" }, React.createElement("path", { d: "M8 5v14M16 5v14" }));
   var GifIcon2 = () => React.createElement("svg", { width: "15", height: "15", viewBox: "0 0 24 24" }, React.createElement("text", { x: "12", y: "17", fontSize: "16", fontWeight: "700", letterSpacing: "-1.1", textAnchor: "middle", fill: "currentColor" }, "GIF"));
@@ -20028,21 +20051,14 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       ...S.head,
       ...narrow ? { padding: "8px 10px", gap: 8 } : null,
       ...compact ? { flexWrap: "wrap", rowGap: 8 } : null
-    } }, React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" } }, onClose && React.createElement(
-      "button",
-      {
-        className: "btn",
-        onClick: onClose,
-        title: "Back to the analyzer (B)",
-        "aria-label": "Back to the analyzer",
-        style: { display: "flex", alignItems: "center", padding: "7px 9px", flexShrink: 0 }
-      },
-      React.createElement(BackIcon2, null)
-    ), React.createElement(
+    } }, React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" } }, React.createElement(
       "button",
       {
         type: "button",
-        onClick: () => window.location.reload(),
+        onClick: () => {
+          markHomeNav();
+          window.location.reload();
+        },
         title: "Home (reloads KineMech)",
         "aria-label": "Home (reloads KineMech)",
         style: {
