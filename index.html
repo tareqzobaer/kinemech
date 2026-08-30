@@ -1186,6 +1186,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     let faceLo = Infinity, faceHi = -Infinity;
     let minConvexR0 = -Infinity;
     let minArmDist = Infinity, minArmTheta = null;
+    const pivotPts = [];
     for (let i = 0; i < samples; i++) {
       const theta = i / samples * 360;
       const k = evalProgram(prog, theta);
@@ -1212,6 +1213,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           minArmDist = dArm;
           minArmTheta = theta;
         }
+        pivotPts.push({ theta, x: mirror ? -pivotPt.x : pivotPt.x, y: pivotPt.y });
       }
       const sp = Math.hypot(P3.dx, P3.dy);
       const nx = sp > 0 ? P3.dy / sp : 0;
@@ -1254,6 +1256,24 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         });
       } else if (!M.translating) {
         out.armClearance = minArmDist;
+      }
+      if (!M.translating) {
+        let pivotHit = null;
+        for (const p of pivotPts) {
+          if (pointInPolygon(p, profile)) {
+            pivotHit = p;
+            break;
+          }
+        }
+        if (pivotHit) {
+          out.pivotInterference = true;
+          issues.push({
+            severity: "error",
+            kind: "interference",
+            message: `The follower pivot lands inside the drawn profile at ${pivotHit.theta.toFixed(0)}\xB0.`,
+            detail: "A rise elsewhere in the program bulges the profile out past the pivot's own distance from the cam center, even though the arm clears the base circle. The pivot bracket would have to sit inside solid material there. Move the pivot further out, use a shorter arm, or rework the program."
+          });
+        }
       }
       let minC = null;
       for (const r of rhos) if (r.rho > 0 && (!minC || r.rho < minC.rho)) minC = r;
@@ -1588,6 +1608,15 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     if (len2 < 1e-12) return Math.hypot(A.x, A.y);
     const t = Math.max(0, Math.min(1, -(A.x * dx + A.y * dy) / len2));
     return Math.hypot(A.x + t * dx, A.y + t * dy);
+  }
+  function pointInPolygon(pt, poly2) {
+    let inside = false;
+    for (let i = 0, j = poly2.length - 1; i < poly2.length; j = i++) {
+      const xi = poly2[i].x, yi = poly2[i].y, xj = poly2[j].x, yj = poly2[j].y;
+      const crosses = yi > pt.y !== yj > pt.y && pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi;
+      if (crosses) inside = !inside;
+    }
+    return inside;
   }
   function pivotedPressureAngle(theta, k, geom, psi0, sigma, P3, phase = 0) {
     const psi = psi0 + sigma * k.s * D2R2;
@@ -13377,7 +13406,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const partW = Math.max(rollerR * 0.4, geom.r0 * 0.05);
     const stemLen = Math.max(rollerR * 1.8, geom.r0 * 0.25);
     const fill = lighten(T.textSub, 0.65), stroke = T.textSub;
-    const armBad = F.kind === "pivoted" && result.armClearance != null && result.armClearance < geom.r0;
+    const armBad = F.kind === "pivoted" && (result.armClearance != null && result.armClearance < geom.r0 || result.pivotInterference);
     ctx.save();
     ctx.strokeStyle = T.textSub;
     ctx.globalAlpha = 0.45;
@@ -13903,6 +13932,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   var ic = { fill: "none", stroke: "currentColor", strokeWidth: 2.3, strokeLinecap: "round", strokeLinejoin: "round" };
   var SunIcon = () => React.createElement("svg", { width: "13", height: "13", viewBox: "0 0 24 24", ...ic }, React.createElement("circle", { cx: "12", cy: "12", r: "4.2" }), React.createElement("path", { d: "M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4" }));
   var MoonIcon = () => React.createElement("svg", { width: "13", height: "13", viewBox: "0 0 24 24", ...ic }, React.createElement("path", { d: "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" }));
+  var BackIcon = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", ...ic }, React.createElement("path", { d: "M15 5 L8 12 L15 19" }));
   var PlayIcon = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "currentColor", stroke: "none" }, React.createElement("path", { d: "M7 4.5v15l12-7.5z" }));
   var PauseIcon = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "currentColor", stroke: "none" }, React.createElement("rect", { x: "6", y: "4.5", width: "4", height: "15", rx: "1" }), React.createElement("rect", { x: "14", y: "4.5", width: "4", height: "15", rx: "1" }));
   var GifIcon = () => React.createElement("svg", { width: "15", height: "15", viewBox: "0 0 24 24" }, React.createElement("text", { x: "12", y: "17", fontSize: "16", fontWeight: "700", letterSpacing: "-1.1", textAnchor: "middle", fill: "currentColor" }, "GIF"));
@@ -13954,7 +13984,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     } }, "LOCKED")), React.createElement("div", { style: { border: `1px solid ${T.border2}`, borderRadius: 5, padding: "6px 9px" } }, rows.map(([k, v]) => React.createElement("div", { key: k, style: { display: "flex", justifyContent: "space-between", gap: 10, fontSize: 11, lineHeight: 1.7 } }, React.createElement("span", { style: { color: T.textMuted } }, k), React.createElement("span", { style: { color: T.text, fontFamily: "ui-monospace,monospace" } }, v)))), React.createElement("div", { style: { fontSize: 10, color: T.textMuted, marginTop: 5, lineHeight: 1.45 } }, "Measured from where the mechanism's joints sit. Change them there, not here. The base circle, roller, and the program itself are still yours."));
   };
   var Sel = ({ label, v, on, opts, T, title }) => React.createElement("label", { style: { display: "block", marginBottom: 9 }, title }, React.createElement(Lbl, { T }, label), React.createElement("select", { value: v, onChange: (e) => on(e.target.value), style: { width: "100%", boxSizing: "border-box" } }, opts.map(([k, l]) => React.createElement("option", { key: k, value: k }, l))));
-  var Seg = ({ label, v, on, opts, T, title }) => React.createElement("div", { style: { marginBottom: 9 }, title }, React.createElement(Lbl, { T }, label), React.createElement("div", { style: { display: "flex", border: `1px solid ${T.border2}`, borderRadius: 4, overflow: "hidden" } }, opts.map(([k, l], i) => React.createElement("button", { key: k, onClick: () => on(k), style: {
+  var Seg = ({ label, v, on, opts, T, title }) => React.createElement("div", { style: { marginBottom: 9 }, title }, label && React.createElement(Lbl, { T }, label), React.createElement("div", { style: { display: "flex", border: `1px solid ${T.border2}`, borderRadius: 4, overflow: "hidden" } }, opts.map(([k, l], i) => React.createElement("button", { key: k, onClick: () => on(k), style: {
     flex: 1,
     padding: "4px 6px",
     cursor: "pointer",
@@ -14497,7 +14527,17 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       rpanel: { ...S.results, width: rightOpen ? 290 : 30, flex: rightOpen ? "0 0 290px" : "0 0 30px", padding: rightOpen ? 12 : "8px 4px", display: "block", position: "relative", overflowX: "hidden", transition: "flex-basis .15s" },
       seg: { border: `1px solid ${T.border2}`, borderRadius: 5, padding: 8, marginBottom: 7, background: T.bg }
     };
-    return React.createElement(ThemeContext.Provider, { value: T }, React.createElement("div", { style: S.root }, React.createElement("header", { style: { ...S.head, ...narrow ? { padding: "8px 10px", gap: 8, flexWrap: "wrap", rowGap: 8 } : null } }, React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" } }, React.createElement(
+    return React.createElement(ThemeContext.Provider, { value: T }, React.createElement("div", { style: S.root }, React.createElement("header", { style: { ...S.head, ...narrow ? { padding: "8px 10px", gap: 8, flexWrap: "wrap", rowGap: 8 } : null } }, React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" } }, onClose && React.createElement(
+      "button",
+      {
+        className: "btn",
+        onClick: onClose,
+        title: "Back to the analyzer (B)",
+        "aria-label": "Back to the analyzer",
+        style: { display: "flex", alignItems: "center", padding: "7px 9px", flexShrink: 0 }
+      },
+      React.createElement(BackIcon, null)
+    ), React.createElement(
       "button",
       {
         type: "button",
@@ -14543,7 +14583,15 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         swatch: LAYER_SWATCH(T)[k],
         on: (v) => setLayers((l) => ({ ...l, [k]: v }))
       }
-    )), React.createElement("div", { style: { display: "flex", gap: 5, marginTop: 7 } }, React.createElement("button", { className: "btn", style: { flex: 1, fontSize: 10.5, padding: "3px 6px" }, onClick: () => setLayers({ ...DEFAULT_LAYERS }) }, "All"), React.createElement(
+    )), React.createElement("div", { style: { display: "flex", gap: 5, marginTop: 7 } }, React.createElement(
+      "button",
+      {
+        className: "btn",
+        style: { flex: 1, fontSize: 10.5, padding: "3px 6px" },
+        onClick: () => setLayers(LAYER_KEYS.reduce((a, k) => ({ ...a, [k]: true }), {}))
+      },
+      "All"
+    ), React.createElement(
       "button",
       {
         className: "btn",
@@ -14722,7 +14770,6 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       Seg,
       {
         T,
-        label: "type",
         v: geom.family || "plate",
         on: (v) => setGeom((g) => familyChange(g, v)),
         opts: [["plate", "plate"], ["cylindrical", "drum"], ["linear", "linear"]],
@@ -17150,6 +17197,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   var Row2 = ({ k, v, T }) => React.createElement("div", { style: { display: "flex", padding: "3px 0", fontSize: 12, gap: 8 } }, React.createElement("span", { style: { color: T.textSub, flex: "0 0 56%", minWidth: 0 } }, k), React.createElement("span", { style: { color: T.resVal, fontWeight: 600, flex: "1 1 44%", minWidth: 0, textAlign: "right" } }, v));
   var SunIcon2 = () => React.createElement("svg", { width: "13", height: "13", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.3", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("circle", { cx: "12", cy: "12", r: "4.2" }), React.createElement("path", { d: "M12 1.8v2.4M12 19.8v2.4M4.3 4.3l1.7 1.7M18 18l1.7 1.7M1.8 12h2.4M19.8 12h2.4M4.3 19.7l1.7-1.7M18 6l1.7-1.7" }));
   var MoonIcon2 = () => React.createElement("svg", { width: "12.5", height: "12.5", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.3", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" }));
+  var BackIcon2 = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.4", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M15 5 L8 12 L15 19" }));
   var PlayIcon2 = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "currentColor", stroke: "none" }, React.createElement("path", { d: "M8 5v14l11-7-11-7Z" }));
   var PauseIcon2 = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round" }, React.createElement("path", { d: "M8 5v14M16 5v14" }));
   var GifIcon2 = () => React.createElement("svg", { width: "15", height: "15", viewBox: "0 0 24 24" }, React.createElement("text", { x: "12", y: "17", fontSize: "16", fontWeight: "700", letterSpacing: "-1.1", textAnchor: "middle", fill: "currentColor" }, "GIF"));
@@ -20051,7 +20099,17 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       ...S.head,
       ...narrow ? { padding: "8px 10px", gap: 8 } : null,
       ...compact ? { flexWrap: "wrap", rowGap: 8 } : null
-    } }, React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" } }, React.createElement(
+    } }, React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" } }, onClose && React.createElement(
+      "button",
+      {
+        className: "btn",
+        onClick: onClose,
+        title: "Back to the analyzer (B)",
+        "aria-label": "Back to the analyzer",
+        style: { display: "flex", alignItems: "center", padding: "7px 9px", flexShrink: 0 }
+      },
+      React.createElement(BackIcon2, null)
+    ), React.createElement(
       "button",
       {
         type: "button",
@@ -20934,12 +20992,18 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       writeViewPref(view);
     }, [view]);
     const viewHistoryRef = useRef([]);
-    const navigate = (v) => {
+    const [entryKind, setEntryKind] = useState("bare");
+    const navigate = (v, kind = "bare") => {
       if (v === view) return;
-      viewHistoryRef.current.push(view);
+      viewHistoryRef.current.push({ view, entryKind });
       setViewState(v);
+      setEntryKind(kind);
     };
-    const goBack = () => setViewState(viewHistoryRef.current.pop() ?? "analyze");
+    const goBack = () => {
+      const prev = viewHistoryRef.current.pop() ?? { view: "analyze", entryKind: "bare" };
+      setViewState(prev.view);
+      setEntryKind(prev.entryKind);
+    };
     const camEverOpened = useRef(false);
     if (view === "cam") camEverOpened.current = true;
     const camOpened = camEverOpened.current;
@@ -20948,7 +21012,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const handoff = (data, source, target = "analyze") => {
       seqRef.current += 1;
       setIncoming({ data, source, seq: seqRef.current, target });
-      navigate(target);
+      navigate(target, "handoff");
     };
     const designCam = (payload) => handoff(payload, "Analyzer", "cam");
     const returnCam = (payload) => handoff(payload, "Cam", "analyze");
@@ -20962,7 +21026,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     };
     const onCamReady = (seq) => {
       if (seq !== seqRef.current) return;
-      navigate("cam");
+      navigate("cam", "handoff");
       const cb = camReadyCbRef.current;
       camReadyCbRef.current = null;
       cb && cb();
@@ -20986,7 +21050,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         dark,
         setDark,
         onUse: handoff,
-        onClose: goBack,
+        onClose: entryKind === "handoff" ? goBack : null,
         incoming: incoming && incoming.target === "synthesize" ? incoming : null
       }
     )), camOpened && React.createElement("div", { className: "view-fade", style: pane(view === "cam") }, React.createElement(
@@ -20994,7 +21058,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       {
         dark,
         setDark,
-        onClose: goBack,
+        onClose: entryKind === "handoff" ? goBack : null,
         incoming: incoming && incoming.target === "cam" ? incoming : null,
         onReady: onCamReady,
         onUseInMechanism: returnCam,
