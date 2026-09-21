@@ -92,6 +92,7 @@ class="statcounter"
 src="https://c.statcounter.com/13340548/0/9b9f5c4d/1/"
 alt="Web Analytics"
 referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
+<script defer src="/_vercel/insights/script.js"></script>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"
   integrity="sha512-8Q6Y9XnTbOE+JNvjBQwJ2H8S+UV4uA6hiRykhdtIyDYZ2TprdNmWOUaKdGzOhyr4dCyk287OejbPvwl7lrfqrQ=="></script>
@@ -13592,9 +13593,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     ctx.beginPath();
     ctx.arc(cx, cy, R, a0, a1, false);
     ctx.stroke();
-    const tip = cwSense ? a0 : a1;
+    const tip = cwSense ? a1 : a0;
     const tx = cx + R * Math.cos(tip), ty = cy + R * Math.sin(tip);
-    const dir = cwSense ? -1 : 1;
+    const dir = cwSense ? 1 : -1;
     const t = { x: -Math.sin(tip) * dir, y: Math.cos(tip) * dir };
     ctx.fillStyle = T.accentBlue;
     ctx.beginPath();
