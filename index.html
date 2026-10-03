@@ -3291,9 +3291,15 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     }
     return [gx + dx * clear, gy + dy * clear];
   }
-  function fbdExplodeOffsets(links, solution, explodeFactor, joints = []) {
+  function fbdExplodeOffsets(links, solution, explodeFactor, joints = [], elements = []) {
     const movingLinks = links.filter((lk) => solution.linkKin[lk.id] && !solution.linkKin[lk.id].ground);
     const massedSliders = joints.filter((j) => j.type === "slider" && j.ground && j.mass != null && solution.pos[j.id]);
+    const bodyOf = (id) => massedSliders.find((j) => j.id === id)?.id ?? movingLinks.find((lk) => lk.joints.includes(id))?.id ?? null;
+    const linearElements = elements.filter((el) => {
+      if (el.mode !== "linear" || !solution.pos[el.aJoint] || !solution.pos[el.bJoint]) return false;
+      const bodyA = bodyOf(el.aJoint), bodyB = bodyOf(el.bJoint);
+      return bodyA == null || bodyA !== bodyB;
+    });
     const centroid = (pts) => ({ x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length });
     const ptsOf = (lk) => lk.joints.map((id) => solution.pos[id]).filter(Boolean);
     const allPts = [...movingLinks.flatMap(ptsOf), ...massedSliders.map((j) => solution.pos[j.id])];
@@ -3323,11 +3329,12 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         push(lk.id, centroid(pts));
       }
       for (const j of massedSliders) push(j.id, solution.pos[j.id]);
+      for (const el of linearElements) push(el.id, centroid([solution.pos[el.aJoint], solution.pos[el.bJoint]]));
     }
-    return { movingLinks, massedSliders, offset };
+    return { movingLinks, massedSliders, linearElements, offset };
   }
   function drawFBDExploded(ctx, { joints, links, solution, dynamics, SX, SY, T, explodeFactor, driverKind, crankLink, driverJoint, jointNames, linkNumbers = {}, sliderNumbers = {}, hoverFBD, gravityOn, gravityMag, elements = [], showValues = false, only = null, emphJoint = null }) {
-    const { movingLinks, massedSliders, offset } = fbdExplodeOffsets(links, solution, explodeFactor, joints);
+    const { movingLinks, massedSliders, linearElements, offset } = fbdExplodeOffsets(links, solution, explodeFactor, joints, elements);
     if (!movingLinks.length || !Object.keys(offset).length) return {};
     const scr = (linkId, x, y) => {
       const o = offset[linkId] || { dx: 0, dy: 0 };
@@ -3613,23 +3620,15 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         forceArrowV(x, y, r.Fx, r.Fy, T.torqueColor);
       }
     }
-    for (const el of elements) {
+    for (const el of linearElements) {
       if (only) break;
-      if (el.mode !== "linear") continue;
       const pa = solution.pos[el.aJoint], pb = solution.pos[el.bJoint];
-      if (!pa || !pb) continue;
-      const bodyA = bodyOf(el.aJoint), bodyB = bodyOf(el.bJoint);
-      if (bodyA != null && bodyA === bodyB) continue;
-      const [jx1, jy1] = scr(bodyA, pa.x, pa.y);
-      const [jx2, jy2] = scr(bodyB, pb.x, pb.y);
-      const rx1 = SX(pa.x), ry1 = SY(pa.y), rx2 = SX(pb.x), ry2 = SY(pb.y);
-      const dirL = Math.hypot(rx2 - rx1, ry2 - ry1) || 1;
-      const uxs = (rx2 - rx1) / dirL, uys = (ry2 - ry1) / dirL;
-      const rL = Math.hypot(jx2 - jx1, jy2 - jy1) || 1;
-      const mx = (jx1 + jx2) / 2, my = (jy1 + jy2) / 2;
-      const half = rL / 2;
-      const x1 = mx - uxs * half, y1 = my - uys * half;
-      const x2 = mx + uxs * half, y2 = my + uys * half;
+      const [x1, y1] = scr(el.id, pa.x, pa.y);
+      const [x2, y2] = scr(el.id, pb.x, pb.y);
+      const rL = Math.hypot(x2 - x1, y2 - y1);
+      if (rL < 1e-9) continue;
+      const uxs = (x2 - x1) / rL, uys = (y2 - y1) / rL;
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
       if (el.k) {
         drawSpringGlyph(ctx, x1, y1, x2, y2, T.ground);
         const freeLs = (el.free || 0) * worldScale;
@@ -3711,13 +3710,13 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       case "no-assemble":
         return "Cannot assemble at this input value. Try a different position or angle, or check the lengths.";
       case "toggle":
-        return "Reached a dead-point: the input cannot move further here. That's a rocker's swing limit, or a translation driver's end of stroke. Try a different driven link or joint, or check the Grashof condition.";
+        return "Reached an input limit (a dead point or toggle position): the input cannot move further here. That's a rocker's swing limit, or a translation driver's end of stroke. Try a different driven link or joint, or check the Grashof condition.";
       default:
         return "Cannot solve.";
     }
   }
 
-  var { useState, useRef, useEffect, useMemo, useCallback } = React;
+  var { useState, useRef, useEffect, useMemo, useCallback, memo } = React;
 
   var LIGHT = {
     bg: "#ffffff",
@@ -4092,6 +4091,15 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     }, []);
     return { splitRatio, onSplitPointerDown, onSplitPointerMove, onSplitPointerUp };
   }
+  function useStableHandlers(handlers) {
+    const latest = useRef(handlers);
+    latest.current = handlers;
+    const stable = useRef(null);
+    if (!stable.current) {
+      stable.current = Object.fromEntries(Object.keys(handlers).map((k) => [k, (...args) => latest.current[k](...args)]));
+    }
+    return stable.current;
+  }
 
   var BrandMark = ({ size = 30 }) => React.createElement("svg", { viewBox: "0 0 24 24", width: size, height: size, "aria-hidden": "true", style: { display: "block", flex: "0 0 auto" } }, React.createElement("rect", { x: "0.5", y: "0.5", width: "23", height: "23", rx: "4.5", fill: "#ffffff", stroke: "#c8d0de" }), React.createElement("path", { d: "M7 4.5 L7 19.5", stroke: "#46557a", strokeWidth: "2.6", strokeLinecap: "round", fill: "none" }), React.createElement("path", { d: "M7 12.5 L17.5 5.5", stroke: "#2f9e6e", strokeWidth: "2.6", strokeLinecap: "round", fill: "none" }), React.createElement("path", { d: "M7 12.5 L17.5 19.5", stroke: "#3a7fc8", strokeWidth: "2.6", strokeLinecap: "round", fill: "none" }), React.createElement("circle", { cx: "7", cy: "12.5", r: "2.1", fill: "#ffffff", stroke: "#1a2236", strokeWidth: "1.5" }), React.createElement("circle", { cx: "17.5", cy: "5.5", r: "1.5", fill: "#1a2236" }), React.createElement("circle", { cx: "17.5", cy: "19.5", r: "1.5", fill: "#1a2236" }));
   var WordMark = ({ tool = null }) => React.createElement(React.Fragment, null, "KINEMECH", tool && React.createElement(React.Fragment, null, ".", React.createElement("span", { style: { fontWeight: 900 } }, tool)));
@@ -4462,7 +4470,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   };
   var DIM_SW = 1.35;
   var DIM_SW_THIN = 1;
-  var Icon = ({ name, size = 15 }) => {
+  var Icon = memo(({ name, size = 15 }) => {
     const common = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
     const paths = {
       clipboard: React.createElement(React.Fragment, null, React.createElement("rect", { x: "8", y: "5", width: "12", height: "15", rx: "2" }), React.createElement("path", { d: "M9 5h1.5a2 2 0 0 1 3 0H15a1 1 0 0 1 1 1v1H8V6a1 1 0 0 1 1-1Z" })),
@@ -4506,6 +4514,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       chart: React.createElement(React.Fragment, null, React.createElement("path", { d: "M4 4v16h16" }), React.createElement("path", { d: "M7 15 10.5 11 13.5 14 18 8" })),
       play: React.createElement("path", { d: "M8 5v14l11-7-11-7Z", fill: "currentColor", stroke: "none" }),
       pause: React.createElement(React.Fragment, null, React.createElement("path", { d: "M8 5v14" }), React.createElement("path", { d: "M16 5v14" })),
+
+      limitPrev: React.createElement("path", { d: "M6 5v14m12-14-7 7 7 7" }),
+      limitNext: React.createElement("path", { d: "M18 5v14M6 5l7 7-7 7" }),
       sun: React.createElement(React.Fragment, null, React.createElement("circle", { cx: "12", cy: "12", r: "4" }), React.createElement("path", { d: "M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" })),
       moon: React.createElement("path", { d: "M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" }),
       more: React.createElement(React.Fragment, null, React.createElement("circle", { cx: "5", cy: "12", r: "1.7", fill: "currentColor", stroke: "none" }), React.createElement("circle", { cx: "12", cy: "12", r: "1.7", fill: "currentColor", stroke: "none" }), React.createElement("circle", { cx: "19", cy: "12", r: "1.7", fill: "currentColor", stroke: "none" })),
@@ -4533,7 +4544,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       panelRightOpen: React.createElement(React.Fragment, null, React.createElement("rect", { x: "3", y: "5", width: "18", height: "14", rx: "2" }), React.createElement("rect", { x: "16", y: "6", width: "4", height: "12", rx: "1", fill: "currentColor", stroke: "none" }), React.createElement("path", { d: "M10.5 9.5 7 12l3.5 2.5" }))
     };
     return React.createElement("svg", { viewBox: "0 0 24 24", width: size, height: size, "aria-hidden": "true", style: { display: "inline-block", verticalAlign: "-2px", flex: "0 0 auto" }, ...common }, paths[name]);
-  };
+  });
   var IconText = ({ icon, children }) => React.createElement("span", { style: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 } }, React.createElement(Icon, { name: icon }), children);
   var ThemeSwitch = ({ dark, onClick }) => {
     const T = useTheme();
@@ -5293,7 +5304,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       React.createElement(Icon, { name: "trash", size: 13 })
     )), React.createElement("div", { style: { display: "flex", gap: 6 } }, React.createElement("label", { style: { flex: 1, fontSize: 10, color: T.textMuted } }, "Link A", React.createElement("select", { value: el.aLink ?? "", onChange: (e) => setLink(el.id, "aLink", e.target.value), style: { width: "100%", marginTop: 2 } }, movingLinks.map((l) => React.createElement("option", { key: l.id, value: l.id }, "Link ", numbers[l.id] ?? "?")))), React.createElement("label", { style: { flex: 1, fontSize: 10, color: T.textMuted } }, "Link B", React.createElement("select", { value: el.bLink ?? "", onChange: (e) => setLink(el.id, "bLink", e.target.value), style: { width: "100%", marginTop: 2 } }, React.createElement("option", { value: "" }, "Ground / fixed frame"), movingLinks.filter((l) => l.id !== el.aLink).map((l) => React.createElement("option", { key: l.id, value: l.id }, "Link ", numbers[l.id] ?? "?"))))))));
   };
-  var ResultsPanel = ({ solution, joints, links, elements = [], numbers, sliderNumbers, jointNames, driverKind, crankLink, driverJoint, driverRef, thetaRange, sRange, scaleFactor = 1, unitLabel = "u", fourbarQuality, onCheckFourbar, dynamicsNow, dynamicsCycle, onCheckDynamicsCycle, dynamicsEligible, resultsTab, setResultsTab, balanceResult, balanceBusy = false, balanceProgress = 0, onBalance, onStopBalance, onRemoveBalance, onCompareBalance, staleWarning, legend, compact = false }) => {
+  var offscreenSkip = (h) => ({ contentVisibility: "auto", containIntrinsicSize: `auto ${h}px` });
+  var CARD_H = { linkMotion: 75, vel: 82, acc: 202, pos: 150 };
+  var ResultsPanel = memo(({ solution, joints, links, elements = [], numbers, sliderNumbers, jointNames, driverKind, crankLink, driverJoint, driverRef, thetaRange, sRange, scaleFactor = 1, unitLabel = "u", fourbarQuality, onCheckFourbar, dynamicsNow, dynamicsCycle, onCheckDynamicsCycle, dynamicsEligible, resultsTab, setResultsTab, balanceResult, balanceBusy = false, balanceProgress = 0, onBalance, onStopBalance, onRemoveBalance, onCompareBalance, staleWarning, legend, compact = false }) => {
     const T = useTheme(), S = makeStyles(T), fx = useFocusLink();
     const { linkKin, recon, vel, acc } = solution;
     const su = unitLabel;
@@ -5317,7 +5330,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       }
       return null;
     })();
-    const RangeTable = ({ col }) => thetaRange?.full && driverKind === "rotation" ? React.createElement("div", { style: { fontSize: 10, color: T.textMuted, marginTop: 4 } }, "Full rotation, no dead points.") : rangeRows ? React.createElement("div", { style: { marginTop: 6 } }, React.createElement("div", { style: S.specTable }, rangeRows.map(([k, v], i) => React.createElement(KinRow, { key: k, k, v, col, last: i === rangeRows.length - 1 })))) : null;
+    const rangeTable = (col) => thetaRange?.full && driverKind === "rotation" ? React.createElement("div", { style: { fontSize: 10, color: T.textMuted, marginTop: 4 } }, "Full rotation, no input limits.") : rangeRows ? React.createElement("div", { style: { marginTop: 6 } }, React.createElement("div", { style: S.specTable }, rangeRows.map(([k, v], i) => React.createElement(KinRow, { key: k, k, v, col, last: i === rangeRows.length - 1 })))) : null;
     const magAng = (v) => ({ mag: Math.hypot(v.x, v.y) * scaleFactor, ang: deg(Math.atan2(v.y, v.x)) });
     const relByJoint = {};
     const addRel = (id, refId, k, sign) => {
@@ -5508,10 +5521,10 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       if (!k) return null;
       const isCrank = driverKind === "rotation" && lk.id === crankLink;
       const col = isCrank ? T.accent : T.accentBlue;
-      return React.createElement("div", { key: lk.id, ...focusProps(fx, "link", lk.id), style: { marginBottom: 10, ...focusRing(fx, "link", lk.id, T) } }, React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } }, React.createElement("span", { style: { color: col, fontWeight: 700, fontSize: 12 } }, "Link ", numbers[lk.id], isCrank ? " (crank)" : ""), React.createElement("span", { style: { color: T.textMuted, fontSize: 10.5 } }, lk.joints.map((id) => jointNames?.[id] ?? id).join("\u2013"))), React.createElement("div", { style: S.specTable }, React.createElement(KinRow, { k: "\u03C9", v: fmt2(k.omega, 2) + " rad/s", col }), React.createElement(KinRow, { k: "\u03B1", v: fmt2(k.alpha, 2) + " rad/s\xB2", col, last: true })), isCrank && React.createElement(RangeTable, { col }));
+      return React.createElement("div", { key: lk.id, ...focusProps(fx, "link", lk.id), style: { marginBottom: 10, ...offscreenSkip(CARD_H.linkMotion), ...focusRing(fx, "link", lk.id, T) } }, React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } }, React.createElement("span", { style: { color: col, fontWeight: 700, fontSize: 12 } }, "Link ", numbers[lk.id], isCrank ? " (crank)" : ""), React.createElement("span", { style: { color: T.textMuted, fontSize: 10.5 } }, lk.joints.map((id) => jointNames?.[id] ?? id).join("\u2013"))), React.createElement("div", { style: S.specTable }, React.createElement(KinRow, { k: "\u03C9", v: fmt2(k.omega, 2) + " rad/s", col }), React.createElement(KinRow, { k: "\u03B1", v: fmt2(k.alpha, 2) + " rad/s\xB2", col, last: true })), isCrank && rangeTable(col));
     }), solution.sliderKin && joints.filter((j) => solution.sliderKin[j.id]).map((j) => {
       const sk = solution.sliderKin[j.id];
-      return React.createElement("div", { key: j.id, ...focusProps(fx, "joint", j.id), style: { marginBottom: 10, ...focusRing(fx, "joint", j.id, T) } }, React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } }, React.createElement("span", { style: { color: T.accentBlue, fontWeight: 700, fontSize: 12 } }, "Slider ", sliderNumbers?.[j.id] ?? "?")), React.createElement("div", { style: S.specTable }, React.createElement(KinRow, { k: "slide rate", v: fmt2(sk.slideRate * scaleFactor, 2) + ` ${su}/s`, col: T.accentBlue }), React.createElement(KinRow, { k: "slide accel", v: fmt2(sk.slideAcc * scaleFactor, 2) + ` ${su}/s\xB2`, col: T.accentBlue }), React.createElement(KinRow, { k: "coriolis", v: fmt2((sk.coriolis || 0) * scaleFactor, 2) + ` ${su}/s\xB2`, col: T.accentBlue, last: true })), j.id === driverPosJointId && React.createElement(RangeTable, { col: T.accentBlue }));
+      return React.createElement("div", { key: j.id, ...focusProps(fx, "joint", j.id), style: { marginBottom: 10, ...offscreenSkip(CARD_H.linkMotion), ...focusRing(fx, "joint", j.id, T) } }, React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } }, React.createElement("span", { style: { color: T.accentBlue, fontWeight: 700, fontSize: 12 } }, "Slider ", sliderNumbers?.[j.id] ?? "?")), React.createElement("div", { style: S.specTable }, React.createElement(KinRow, { k: "slide rate", v: fmt2(sk.slideRate * scaleFactor, 2) + ` ${su}/s`, col: T.accentBlue }), React.createElement(KinRow, { k: "slide accel", v: fmt2(sk.slideAcc * scaleFactor, 2) + ` ${su}/s\xB2`, col: T.accentBlue }), React.createElement(KinRow, { k: "coriolis", v: fmt2((sk.coriolis || 0) * scaleFactor, 2) + ` ${su}/s\xB2`, col: T.accentBlue, last: true })), j.id === driverPosJointId && rangeTable(T.accentBlue));
     })), activeTab === "vel" && vel && React.createElement("div", { style: S.sectionBody }, joints.map((j) => {
       const v = vel[j.id];
       if (!v) return null;
@@ -5525,7 +5538,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         const rv = magAng({ x: v.x - v1.x, y: v.y - v1.y });
         return [{ tag: React.createElement(VecTag, { base: "V", sub: `${name}/${rel.j1Name}` }), v: `${fmt2(rv.mag, 2)} \u2220${fmt2(rv.ang, 2)}\xB0` }];
       });
-      return React.createElement("div", { key: j.id, ...focusProps(fx, "joint", j.id), style: { marginBottom: 10, ...focusRing(fx, "joint", j.id, T) } }, React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 4 } }, name), React.createElement("div", { style: S.specTable }, React.createElement(KinRow, { k: React.createElement(VecTag, { base: "V", sub: name }), v: `${fmt2(mag, 2)} \u2220${fmt2(ang, 2)}\xB0`, col: T.velOverlay, last: rows.length === 0 }), rows.map((row2, i) => React.createElement(KinRow, { key: i, indent: true, k: row2.tag, v: row2.v, col: T.velOverlay, last: i === rows.length - 1 }))));
+      return React.createElement("div", { key: j.id, ...focusProps(fx, "joint", j.id), style: { marginBottom: 10, ...offscreenSkip(CARD_H.vel), ...focusRing(fx, "joint", j.id, T) } }, React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 4 } }, name), React.createElement("div", { style: S.specTable }, React.createElement(KinRow, { k: React.createElement(VecTag, { base: "V", sub: name }), v: `${fmt2(mag, 2)} \u2220${fmt2(ang, 2)}\xB0`, col: T.velOverlay, last: rows.length === 0 }), rows.map((row2, i) => React.createElement(KinRow, { key: i, indent: true, k: row2.tag, v: row2.v, col: T.velOverlay, last: i === rows.length - 1 }))));
     })), activeTab === "acc" && acc && React.createElement("div", { style: S.sectionBody }, joints.map((j) => {
       const a = acc[j.id];
       if (!a) return null;
@@ -5564,7 +5577,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         return out;
       });
       const allRows = [...pathRows, ...rows];
-      return React.createElement("div", { key: j.id, ...focusProps(fx, "joint", j.id), style: { marginBottom: 10, ...focusRing(fx, "joint", j.id, T) } }, React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 4 } }, name), React.createElement("div", { style: S.specTable }, React.createElement(KinRow, { k: React.createElement(VecTag, { base: "A", sub: name }), v: `${fmt2(mag, 2)} \u2220${fmt2(ang, 2)}\xB0`, col: T.accOverlay, last: allRows.length === 0 }), allRows.map((row2, i) => React.createElement(KinRow, { key: i, indent: row2.lvl, k: row2.tag, v: row2.v, col: T.accOverlay, last: i === allRows.length - 1 }))));
+      return React.createElement("div", { key: j.id, ...focusProps(fx, "joint", j.id), style: { marginBottom: 10, ...offscreenSkip(CARD_H.acc), ...focusRing(fx, "joint", j.id, T) } }, React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 4 } }, name), React.createElement("div", { style: S.specTable }, React.createElement(KinRow, { k: React.createElement(VecTag, { base: "A", sub: name }), v: `${fmt2(mag, 2)} \u2220${fmt2(ang, 2)}\xB0`, col: T.accOverlay, last: allRows.length === 0 }), allRows.map((row2, i) => React.createElement(KinRow, { key: i, indent: row2.lvl, k: row2.tag, v: row2.v, col: T.accOverlay, last: i === allRows.length - 1 }))));
     })), activeTab === "pos" && React.createElement("div", { style: S.sectionBody }, joints.map((j) => {
       const p = recon[j.id];
       if (!p) return null;
@@ -5577,9 +5590,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       else if (dAng < -180) dAng += 360;
       const col = j.ground ? T.red : T.accentBlue;
       const name = jointNames?.[j.id] ?? j.id;
-      return React.createElement("div", { key: j.id, ...focusProps(fx, "joint", j.id), style: { marginBottom: 10, ...focusRing(fx, "joint", j.id, T) } }, React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: col, marginBottom: 4 } }, name), React.createElement("div", { style: S.specTable }, React.createElement(KinRow, { k: "pos", v: `(${fmt2(px, 2)}, ${fmt2(py, 2)})`, col }), React.createElement(KinRow, { indent: true, k: "\u2220", v: `${fmt2(ang, 2)}\xB0`, col }), React.createElement(KinRow, { indent: true, k: "\u0394", v: `(${fmt2(dx, 2)}, ${fmt2(dy, 2)})`, col }), React.createElement(KinRow, { indent: true, k: "\u0394r", v: fmt2(disp, 2), col }), React.createElement(KinRow, { indent: true, k: "\u0394\u03B8", v: `${fmt2(dAng, 2)}\xB0`, col, last: true })), j.id === driverPosJointId && React.createElement(RangeTable, { col }));
+      return React.createElement("div", { key: j.id, ...focusProps(fx, "joint", j.id), style: { marginBottom: 10, ...offscreenSkip(CARD_H.pos), ...focusRing(fx, "joint", j.id, T) } }, React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: col, marginBottom: 4 } }, name), React.createElement("div", { style: S.specTable }, React.createElement(KinRow, { k: "pos", v: `(${fmt2(px, 2)}, ${fmt2(py, 2)})`, col }), React.createElement(KinRow, { indent: true, k: "\u2220", v: `${fmt2(ang, 2)}\xB0`, col }), React.createElement(KinRow, { indent: true, k: "\u0394", v: `(${fmt2(dx, 2)}, ${fmt2(dy, 2)})`, col }), React.createElement(KinRow, { indent: true, k: "\u0394r", v: fmt2(disp, 2), col }), React.createElement(KinRow, { indent: true, k: "\u0394\u03B8", v: `${fmt2(dAng, 2)}\xB0`, col, last: true })), j.id === driverPosJointId && rangeTable(col));
     })), legend));
-  };
+  });
   var KinRow = ({ k, v, col, last, indent, focus }) => {
     const T = useTheme(), S = makeStyles(T), fx = useFocusLink();
     const lvl = indent === true ? 1 : indent || 0;
@@ -6619,6 +6632,33 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     }
     return { value, full: false, pose: warm };
   }
+  function refineDriverLimit(joints, links, ref, limit, dir, minStep, coarseStep, span) {
+    const solveAt = (value, from, warm) => {
+      const sol = solveDriverStep(joints, links, ref, value, 0, 0, warm);
+      const allowed = span * Math.max(0.5 * Math.abs(value - from) / coarseStep, Math.sqrt(Math.abs(value - from) / coarseStep));
+      if (!sol.ok || jointJump(joints, sol.pos, warm) > allowed) return null;
+      return solveDriverStep(joints, links, ref, value, 0, 0, sol.pos).ok ? sol.pos : null;
+    };
+    let good = limit.value, pose = limit.pose, bad = null;
+    for (let step = minStep; Math.abs(good + dir * step - limit.value) <= 4 * coarseStep; step *= 2) {
+      const next = solveAt(good + dir * step, good, pose);
+      if (!next) {
+        bad = good + dir * step;
+        break;
+      }
+      good += dir * step;
+      pose = next;
+    }
+    if (bad == null) return { value: limit.value, pose: limit.pose };
+    for (let k = 0; k < 48 && Math.abs(bad - good) > 1e-13; k++) {
+      const mid = (good + bad) / 2, next = solveAt(mid, good, pose);
+      if (next) {
+        good = mid;
+        pose = next;
+      } else bad = mid;
+    }
+    return { value: good, pose };
+  }
   var CYCLE_SAMPLES = 180;
   function sweepCycle(joints, links, driverKind, driverRef, rate1, rate2, driveRange) {
     if (!driverRef || !driveRange) return null;
@@ -6900,12 +6940,17 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         dir = 0;
       }
     };
+    let trialMs = 0;
     return {
       run(budgetMs = Infinity) {
         const t0 = performance.now();
+        let ran = 0;
         while (!isDone()) {
+          const t = performance.now();
+          if (ran && t - t0 + trialMs > budgetMs) break;
           trial();
-          if (performance.now() - t0 >= budgetMs) break;
+          ran++;
+          trialMs = Math.max(performance.now() - t, trialMs * 0.9);
         }
         return isDone();
       },
@@ -7113,6 +7158,218 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const head = timed ? "x,y,theta" : "x,y";
     const body = doc2.pts.map((p) => timed ? `${p.x},${p.y},${p.theta}` : `${p.x},${p.y}`);
     return [head, ...body].join("\n");
+  }
+
+  var MAX_FRAME_DT = 0.05;
+  function frameClock() {
+    let last = null;
+    const doc2 = typeof document === "undefined" ? null : document;
+    const onVisibility = () => {
+      last = null;
+    };
+    doc2?.addEventListener("visibilitychange", onVisibility);
+    return {
+      dt(t) {
+        const d = last == null ? 0 : Math.min(Math.max((t - last) / 1e3, 0), MAX_FRAME_DT);
+        last = t;
+        return d;
+      },
+      stop() {
+        doc2?.removeEventListener("visibilitychange", onVisibility);
+      }
+    };
+  }
+  function pingPong(p, step, min, max) {
+    const start = Math.min(max, Math.max(min, p));
+    let next = start + step, reversed = false;
+    if (next > max) {
+      next = 2 * max - next;
+      reversed = true;
+    } else if (next < min) {
+      next = 2 * min - next;
+      reversed = true;
+    }
+    return { next: Math.min(max, Math.max(min, next)), reversed };
+  }
+
+  var TAU5 = 2 * Math.PI;
+  var wrap2 = (x, period) => (x % period + period) % period;
+  var angleDelta = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+  function toggleOutputs(joints, links, driverLink, driverJoint) {
+    const fixed = new Set(joints.filter((j) => j.ground && j.type !== "slider").map((j) => j.id));
+    const targets = [];
+    for (const link of links) {
+      if (link.id === driverLink) continue;
+      const pivot = link.joints.find((id) => fixed.has(id));
+      const tip = link.joints.find((id) => !fixed.has(id));
+      if (!pivot || !tip) continue;
+      targets.push({
+        label: link.label || `Link ${link.id}`,
+        angular: true,
+        read: (pose) => pose[pivot] && pose[tip] ? Math.atan2(pose[tip].y - pose[pivot].y, pose[tip].x - pose[pivot].x) : NaN
+      });
+    }
+    for (const joint of joints) {
+      if (joint.type !== "slider" || !joint.ground || joint.id === driverJoint) continue;
+      const angle = joint.sliderAngle || 0;
+      targets.push({
+        label: joint.label || `Slider ${joint.id}`,
+        angular: false,
+        read: (pose) => pose[joint.id] ? pose[joint.id].x * Math.cos(angle) + pose[joint.id].y * Math.sin(angle) : NaN
+      });
+    }
+    return targets;
+  }
+  function outputToggles(samples, targets, poseAt, period = null) {
+    if (samples.length < 3) return [];
+    const events = [];
+    for (const target of targets) {
+      const read = (node) => node?.pose ? target.read(node.pose) : NaN;
+      const delta = target.angular ? angleDelta : (a, b) => a - b;
+      const cyclic = !!period && Math.abs(samples.at(-1).value - samples[0].value - period) < 1e-6 && Math.abs(delta(read(samples.at(-1)), read(samples[0]))) < 1e-6;
+      const nodes = cyclic ? samples.filter((s) => s.value < samples[0].value + period - 1e-10) : samples;
+      for (let i = cyclic ? 0 : 1; i < nodes.length - (cyclic ? 0 : 1); i++) {
+        const mid = nodes[i];
+        const left = i ? nodes[i - 1] : { ...nodes.at(-1), value: nodes.at(-1).value - period };
+        const right = i + 1 < nodes.length ? nodes[i + 1] : { ...nodes[0], value: nodes[0].value + period };
+        const y = read(mid), yl = read(left), yr = read(right);
+        if (![y, yl, yr].every(Number.isFinite)) continue;
+        const dl = delta(y, yl), dr = delta(yr, y);
+        const noise = target.angular ? 1e-10 : 1e-10 * Math.max(1, Math.abs(y), Math.abs(yl), Math.abs(yr));
+        if (!(dl > noise && dr <= 0 || dl >= 0 && dr < -noise || dl < -noise && dr >= 0 || dl <= 0 && dr > noise)) continue;
+        const sign = dl > noise || dr < -noise ? 1 : -1;
+        const score = (value2) => {
+          const pose2 = poseAt(period ? wrap2(value2, period) : value2, mid.pose);
+          const v = pose2 ? target.read(pose2) : NaN;
+          return Number.isFinite(v) ? sign * delta(v, y) : -Infinity;
+        };
+        let a = left.value, b = right.value;
+        const ratio = (Math.sqrt(5) - 1) / 2;
+        let c = b - ratio * (b - a), d = a + ratio * (b - a), fc = score(c), fd = score(d);
+        for (let k = 0; k < 38; k++) {
+          if (fc > fd) {
+            b = d;
+            d = c;
+            fd = fc;
+            c = b - ratio * (b - a);
+            fc = score(c);
+          } else {
+            a = c;
+            c = d;
+            fc = fd;
+            d = a + ratio * (b - a);
+            fd = score(d);
+          }
+        }
+        let value = (a + b) / 2;
+        if (period) value = wrap2(value, period);
+        const pose = poseAt(value, mid.pose);
+        if (!pose || !Number.isFinite(target.read(pose))) continue;
+        const h = (right.value - left.value) * 1e-4;
+        const before = poseAt(period ? wrap2(value - h, period) : value - h, pose);
+        const after = poseAt(period ? wrap2(value + h, period) : value + h, pose);
+        if (!before || !after) continue;
+        const center = target.read(pose), vBefore = target.read(before), vAfter = target.read(after);
+        const tolerance = target.angular ? 1e-5 : 1e-5 * Math.max(1, Math.abs(center));
+        if (![vBefore, vAfter].every(Number.isFinite) || Math.abs(delta(vBefore, center)) > tolerance || Math.abs(delta(vAfter, center)) > tolerance) continue;
+        if (sign * delta(center, vBefore) < -noise || sign * delta(center, vAfter) < -noise) continue;
+        events.push({ value, pose, label: `${target.label} stationary position` });
+      }
+    }
+    return mergeToggles(events, period);
+  }
+  function classifyInputLimit(pose, joints, links, driverLink, driverJoint, canTurnFully, tolDeg = 0.5) {
+    const fixed = new Set(joints.filter((j) => j.ground && j.type !== "slider").map((j) => j.id));
+    const sub2 = (a, b) => ({ x: a.x - b.x, y: a.y - b.y });
+    const fold = (u, v) => Math.acos(Math.min(1, Math.abs(u.x * v.x + u.y * v.y) / (Math.hypot(u.x, u.y) * Math.hypot(v.x, v.y)))) * 180 / Math.PI;
+    let best = null;
+    const consider = (dev, link, slider) => {
+      if (dev <= tolDeg && (!best || dev < best.dev)) best = { dev, link, slider };
+    };
+    for (const driven of links) {
+      if (driven.id === driverLink) continue;
+      const pivot = driven.joints.find((id) => fixed.has(id));
+      if (!pivot || !pose[pivot]) continue;
+      for (const j of driven.joints) {
+        if (fixed.has(j) || !pose[j]) continue;
+        for (const coupler of links) {
+          if (coupler === driven || !coupler.joints.includes(j)) continue;
+          for (const k of coupler.joints) {
+            if (k !== j && pose[k]) consider(fold(sub2(pose[pivot], pose[j]), sub2(pose[k], pose[j])), driven, false);
+          }
+        }
+      }
+    }
+    for (const s of joints) {
+      if (s.type !== "slider" || !s.ground || s.id === driverJoint || !pose[s.id]) continue;
+      const rail = { x: Math.cos(s.sliderAngle || 0), y: Math.sin(s.sliderAngle || 0) };
+      for (const coupler of links) {
+        if (!coupler.joints.includes(s.id)) continue;
+        for (const k of coupler.joints) {
+          if (k !== s.id && pose[k]) consider(90 - fold(rail, sub2(pose[k], pose[s.id])), null, true);
+        }
+      }
+    }
+    if (!best) return null;
+    if (best.slider) return { kind: "toggle", link: null };
+    const full = canTurnFully(best.link.id);
+    return full == null ? null : { kind: full ? "dead" : "toggle", link: best.link };
+  }
+  var inputLimitLabel = (c) => !c ? "Input limit" : c.kind === "toggle" ? "Toggle position" : `Dead point (${c.link.label})`;
+  function mergeToggles(events, period = null) {
+    const out = [];
+    for (const event of [...events].sort((a, b) => a.value - b.value)) {
+      const same = out.find((e) => {
+        const d = Math.abs(e.value - event.value);
+        return (period ? Math.min(d, Math.abs(period - d)) : d) < 1e-6;
+      });
+      if (same) {
+        if (!same.label.includes(event.label)) same.label += ` \xB7 ${event.label}`;
+      } else out.push({ ...event });
+    }
+    return out;
+  }
+  function adjacentToggle(events, current, direction, period = null) {
+    if (!events.length) return null;
+    const epsilon = 1e-6;
+    const distance = (event) => {
+      const d = direction * (event.value - current);
+      if (!period) return d;
+      const w = wrap2(d, period);
+      return w < epsilon || period - w < epsilon ? 0 : w;
+    };
+    const ahead = events.map((event) => ({ event, distance: distance(event) })).filter((e) => e.distance > epsilon);
+    if (ahead.length) return ahead.sort((a, b) => a.distance - b.distance)[0].event;
+    return direction > 0 ? events[0] : events.at(-1);
+  }
+  function reachableSegments(valid, isValid, period = TAU5) {
+    const N = valid.length - 1, runs = [];
+    let start = null;
+    for (let i = 0; i <= N; i++) {
+      if (valid[i] && start === null) start = i;
+      if (!valid[i] && start !== null) {
+        runs.push([start, i - 1]);
+        start = null;
+      }
+    }
+    if (start !== null) runs.push([start, N]);
+    const boundary = (good, bad) => {
+      for (let k = 0; k < 30; k++) {
+        const mid = (good + bad) / 2;
+        if (isValid(wrap2(mid, period))) good = mid;
+        else bad = mid;
+      }
+      return good;
+    };
+    const arcs = runs.map(([a, b]) => ({
+      min: a ? boundary(a / N * period, (a - 1) / N * period) : 0,
+      max: b < N ? boundary(b / N * period, (b + 1) / N * period) : period
+    }));
+    if (arcs.length > 1 && runs[0][0] === 0 && runs.at(-1)[1] === N) {
+      const first = arcs.shift(), last = arcs.pop();
+      arcs.push({ min: last.min, max: first.max + period });
+    }
+    return arcs;
   }
 
   var presetDoc = (o) => ({
@@ -7710,7 +7967,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const [body, joint] = String(id).split("|");
     return { body, joint };
   };
-  function App({ dark, setDark, onSynthesize = null, onCam = null, onSendPath = null, onSendCamProgram = null, onDesignCam = null, onClose = null, backName = "Synthesizer", incoming = null }) {
+  function App({ dark, setDark, onSynthesize = null, onCam = null, onSendPath = null, onSendCamProgram = null, onDesignCam = null, onClose = null, backName = "Synthesizer", incoming = null, active = true }) {
     const narrow = useMedia("(max-width: 900px)");
     const compact = useMedia("(max-width: 640px)");
     const portrait = useMedia("(orientation: portrait)");
@@ -7833,6 +8090,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       setJointMenu(null);
     }, [step]);
     useEffect(() => {
+      if (!active) return;
       const onEsc = (e) => {
         if (e.key !== "Escape") return;
         if (pendingSlider) {
@@ -7856,7 +8114,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       };
       window.addEventListener("keydown", onEsc);
       return () => window.removeEventListener("keydown", onEsc);
-    }, [pendingSlider, pendingGear, pendingCam, pairPick, pendingLink, calibrating, dimDraft, measureDraft]);
+    }, [active, pendingSlider, pendingGear, pendingCam, pairPick, pendingLink, calibrating, dimDraft, measureDraft]);
     const [hoverDimId, setHoverDimId] = useState(null);
     const [dimDragging, setDimDragging] = useState(false);
     const [polyMode, setPolyMode] = useState("off");
@@ -7882,9 +8140,10 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const canvasRef = useRef(null);
     const xformRef = useRef(null);
     const canvasSizeRef = useRef(null);
+    const canvasBox = useRef(new WeakMap());
+    const cssBox = (canvas) => canvasBox.current.get(canvas) ?? { W: canvas.clientWidth, H: canvas.clientHeight };
     const fitBoxRef = useRef(null);
     const rafRef = useRef(null);
-    const lastT = useRef(null);
     const fileRef = useRef(null);
     const kinemechFileRef = useRef(null);
     const traceRef = useRef([]);
@@ -8207,7 +8466,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       const fwd = sweepDriverRange(joints, links, driverRef, STEP, MIN_STEP, span, TAU4, 1);
       const back = sweepDriverRange(joints, links, driverRef, STEP, MIN_STEP, span, TAU4, -1);
       if (fwd.full || back.full) return { full: true };
-      return { full: false, min: back.value, max: fwd.value, poseMin: back.pose, poseMax: fwd.pose };
+      return { full: false, min: back.value, max: fwd.value, poseMin: back.pose, poseMax: fwd.pose, span, step: STEP, minStep: MIN_STEP };
     }, [step, joints, links, driverKind, crankLink, driverRef]);
     const sRange = useMemo(() => {
       if (step !== "solve") return null;
@@ -8219,7 +8478,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       const STEP = span / 72, MIN_STEP = STEP / 64;
       const fwd = sweepDriverRange(joints, links, driverRef, STEP, MIN_STEP, span, null, 1);
       const back = sweepDriverRange(joints, links, driverRef, STEP, MIN_STEP, span, null, -1);
-      return { min: back.value, max: fwd.value, poseMin: back.pose, poseMax: fwd.pose };
+      return { min: back.value, max: fwd.value, poseMin: back.pose, poseMax: fwd.pose, span, step: STEP, minStep: MIN_STEP };
     }, [step, joints, links, driverKind, driverJoint, driverRef]);
     const theta2TrackBg = useMemo(() => {
       if (!thetaRange) return void 0;
@@ -8233,6 +8492,28 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     }, [thetaRange, T]);
     const s2TrackBg = useMemo(() => sRange ? T.trackOk : void 0, [sRange, T]);
     const driveRange = driverKind === "rotation" ? thetaRange : sRange;
+    const deadPoints = useMemo(() => {
+      if (!driveRange || driveRange.full || !driverRef) return null;
+      const { span, step: coarse, minStep } = driveRange;
+      const [lo, hi] = [[-1, driveRange.min, driveRange.poseMin], [1, driveRange.max, driveRange.poseMax]].map(([dir, value, pose]) => refineDriverLimit(joints, links, driverRef, { value, pose }, dir, minStep, coarse, span));
+      const turns = new Map();
+      const canTurnFully = (id) => {
+        if (!turns.has(id)) {
+          const ref = buildDriverRef(joints, links, "rotation", id, null);
+          turns.set(id, ref ? sweepDriverRange(joints, links, ref, Math.PI / 36, Math.PI / 36 / 64, span, TAU4, 1).full : null);
+        }
+        return turns.get(id);
+      };
+      const classify = (pose) => classifyInputLimit(
+        pose,
+        joints,
+        links,
+        driverKind === "rotation" ? crankLink : null,
+        driverKind === "translation" ? driverJoint : null,
+        canTurnFully
+      );
+      return { min: lo.value, max: hi.value, poseMin: lo.pose, poseMax: hi.pose, kindMin: classify(lo.pose), kindMax: classify(hi.pose) };
+    }, [driveRange, driverRef, joints, links, driverKind, crankLink, driverJoint]);
     const cycleData = useMemo(() => {
       if (!showPlots || step !== "solve" || !driveRange || !driverRef) return null;
       const rate1 = driverKind === "rotation" ? w2 : v2, rate2 = driverKind === "rotation" ? al2 : a2;
@@ -8319,17 +8600,17 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           }
           const [j1, j2] = lk.joints;
           output = "rotation";
-          let prevA = null, wrap2 = 0;
+          let prevA = null, wrap3 = 0;
           extractS = (s) => {
             const p1 = s.pos[j1], p2 = s.pos[j2];
             const ang = Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI;
             if (prevA !== null) {
               const d = ang - prevA;
-              if (d > 180) wrap2 -= 360;
-              else if (d < -180) wrap2 += 360;
+              if (d > 180) wrap3 -= 360;
+              else if (d < -180) wrap3 += 360;
             }
             prevA = ang;
-            return ang + wrap2;
+            return ang + wrap3;
           };
           extractVA = (s) => {
             const k = s.linkKin[id];
@@ -8614,7 +8895,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       const useSolved = step === "solve" && solution.ok;
       let pts = useSolved ? Object.values(solution.recon) : joints;
       if (useSolved && fbd) {
-        const { movingLinks, massedSliders, offset } = fbdExplodeOffsets(links, solution, explodeFactor, joints);
+        const { movingLinks, massedSliders, linearElements, offset } = fbdExplodeOffsets(links, solution, explodeFactor, joints, elements);
         const at = (id, p) => {
           const o = offset[id];
           return o ? [{ x: p.x + o.dx, y: p.y + o.dy }] : [];
@@ -8622,7 +8903,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         const exploded = [
           ...movingLinks.flatMap((lk) => lk.joints.map((id) => solution.pos[id]).filter(Boolean).flatMap((p) => at(lk.id, p))),
 
-          ...massedSliders.flatMap((j) => at(j.id, solution.pos[j.id]))
+          ...massedSliders.flatMap((j) => at(j.id, solution.pos[j.id])),
+          ...linearElements.flatMap((el) => [el.aJoint, el.bJoint].flatMap((id) => at(el.id, solution.pos[id])))
         ];
         if (exploded.length) pts = exploded;
       }
@@ -8659,7 +8941,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       const effFinal = xf.scale * zoom;
       const cx2 = (minX + maxX) / 2, cy = (minY + maxY) / 2;
       setView({ zoom, panX: W / 2 - xf.ox - cx2 * effFinal, panY: H / 2 - xf.oy + cy * effFinal });
-    }, [step, solution, joints, fbd, links, explodeFactor, resultsTab, balanceResult]);
+    }, [step, solution, joints, fbd, links, elements, explodeFactor, resultsTab, balanceResult]);
     const dynamicsCycleData = useMemo(() => {
       if (!cycleData || !dynamicsEligible) return null;
       const driverTarget = driverKind === "rotation" ? crankLink : driverJoint;
@@ -8799,7 +9081,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       setResultsTab("balance");
     };
     useEffect(() => {
-      if (!balanceBusy) return;
+      if (!balanceBusy || !active) return;
       let raf = null;
       const end = () => {
         balanceRunRef.current = null;
@@ -8843,12 +9125,32 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       return () => {
         if (raf) cancelAnimationFrame(raf);
       };
-    }, [balanceBusy]);
+    }, [balanceBusy, active]);
     const removeBalance = () => {
       if (!crankLink) return;
       setLinks((arr) => arr.map((l) => l.id === crankLink ? { ...l, cwMass: null, cwU: void 0, cwV: void 0 } : l));
       setBalanceResult(null);
     };
+    const READOUT_MS = 80;
+    const readoutRef = useRef(null);
+    {
+      const now = performance.now();
+      if (!playing || !readoutRef.current || now - readoutRef.current.at >= READOUT_MS) {
+        readoutRef.current = { at: playing ? now : 0, live: solution, shown: solution.ok ? solution : lastGoodSolutionRef.current, dynamicsNow };
+      }
+    }
+    const readout = readoutRef.current;
+    const resultsHandlers = useStableHandlers({
+      onCheckFourbar: computeFourbarQuality,
+      onCheckDynamicsCycle: computeDynamicsCycle,
+      onBalance: runBalance,
+      onStopBalance: stopBalance,
+      onRemoveBalance: removeBalance,
+      onCompareBalance: () => {
+        setPlotTarget({ kind: "balance", id: crankLink });
+        setShowPlots(true);
+      }
+    });
     useEffect(() => {
       const stillThere = plotTarget && (plotTarget.kind === "joint" ? joints.some((j2) => j2.id === plotTarget.id) : plotTarget.kind === "mech" ? dynamicsEligible : links.some((l) => l.id === plotTarget.id));
       if (stillThere) return;
@@ -8865,46 +9167,36 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       if (fbd) setMeasureDraft(null);
     }, [fbd]);
     useEffect(() => {
-      if (!playing) {
-        lastT.current = null;
-        return;
-      }
+      if (!playing || !active) return;
+      const clock = frameClock();
       const tick = (t) => {
-        if (lastT.current == null) lastT.current = t;
-        const dt = (t - lastT.current) / 1e3;
-        lastT.current = t;
+        const dt = clock.dt(t);
         if (driverKind === "rotation") {
           setTheta2((p) => {
-            if (!thetaRange || thetaRange.full) return wrap(p + w2 * speed * dt);
-            let next = p + dirRef.current * w2 * speed * dt;
-            if (next >= thetaRange.max) {
-              next = thetaRange.max;
-              dirRef.current = -1;
-            } else if (next <= thetaRange.min) {
-              next = thetaRange.min;
-              dirRef.current = 1;
-            }
+            if (!deadPoints) return wrap(p + w2 * speed * dt);
+            const { next, reversed } = pingPong(p, dirRef.current * w2 * speed * dt, deadPoints.min, deadPoints.max);
+            if (reversed) dirRef.current = -dirRef.current;
             return next;
           });
         } else {
           setS2((p) => {
-            if (!sRange) return p;
-            let next = p + dirRef.current * v2 * speed * dt;
-            if (next >= sRange.max) {
-              next = sRange.max;
-              dirRef.current = -1;
-            } else if (next <= sRange.min) {
-              next = sRange.min;
-              dirRef.current = 1;
-            }
+            if (!deadPoints) return p;
+            const { next, reversed } = pingPong(p, dirRef.current * v2 * speed * dt, deadPoints.min, deadPoints.max);
+            if (reversed) dirRef.current = -dirRef.current;
             return next;
           });
         }
         rafRef.current = requestAnimationFrame(tick);
       };
       rafRef.current = requestAnimationFrame(tick);
-      return () => cancelAnimationFrame(rafRef.current);
-    }, [playing, driverKind, w2, v2, speed, thetaRange, sRange]);
+      return () => {
+        cancelAnimationFrame(rafRef.current);
+        clock.stop();
+      };
+    }, [playing, active, driverKind, w2, v2, speed, deadPoints]);
+    useEffect(() => {
+      if (step !== "solve") setPlaying(false);
+    }, [step]);
     useEffect(() => {
       if (solution.ok && playing && traceJoint && solution.recon[traceJoint]) {
         const p = solution.recon[traceJoint], last = traceRef.current[traceRef.current.length - 1];
@@ -8920,9 +9212,12 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       if (traceJoint && !joints.some((j) => j.id === traceJoint && !j.ground)) setTraceJoint(null);
     }, [joints, traceJoint]);
     useEffect(() => {
-      const ro = new ResizeObserver(() => setResizeTick((t) => t + 1));
-      if (canvasRef.current?.parentElement) ro.observe(canvasRef.current.parentElement);
-      if (polyRef.current?.parentElement) ro.observe(polyRef.current.parentElement);
+      const ro = new ResizeObserver((entries) => {
+        for (const e of entries) canvasBox.current.set(e.target, { W: Math.round(e.contentRect.width), H: Math.round(e.contentRect.height) });
+        setResizeTick((t) => t + 1);
+      });
+      if (canvasRef.current) ro.observe(canvasRef.current);
+      if (polyRef.current) ro.observe(polyRef.current);
       return () => ro.disconnect();
     }, [polyMode, step]);
     const loadImageFromBlob = useCallback((blob) => {
@@ -8938,6 +9233,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       reader.readAsDataURL(blob);
     }, [flash]);
     useEffect(() => {
+      if (!active) return;
       const onPaste = (e) => {
         const items = e.clipboardData?.items;
         if (!items) return;
@@ -8954,7 +9250,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       };
       window.addEventListener("paste", onPaste);
       return () => window.removeEventListener("paste", onPaste);
-    }, [loadImageFromBlob]);
+    }, [loadImageFromBlob, active]);
     const pasteFromClipboard = useCallback(async () => {
       try {
         if (!navigator.clipboard || !navigator.clipboard.read) {
@@ -9897,6 +10193,62 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       }
       return names;
     }, [joints, links, linkNumbers, isFrameLink]);
+    const toggleCache = useRef(null);
+    const goToToggle = (direction) => {
+      setPlaying(false);
+      if (!driveRange || !driverRef) return;
+      let events = toggleCache.current?.range === driveRange ? toggleCache.current.events : null;
+      if (!events) {
+        const cycle = sweepCycle(joints, links, driverKind, driverRef, 0, 0, driveRange);
+        const outputs = toggleOutputs(
+          joints.map((j) => ({ ...j, label: jointNames[j.id] || j.id })),
+          links.map((l) => ({ ...l, label: `Link ${linkNumbers[l.id] ?? l.id}` })),
+          driverKind === "rotation" ? crankLink : null,
+          driverKind === "translation" ? driverJoint : null
+        );
+        const poseAt = (value, warm) => {
+          const sol = solveDriverStep(joints, links, driverRef, value, 0, 0, warm);
+          return sol.ok ? sol.pos : null;
+        };
+        events = cycle ? outputToggles(
+          cycle.samples.map((s) => ({ value: s.theta, pose: s.s.pos })),
+          outputs,
+          poseAt,
+          cycle.full ? TAU4 : null
+        ) : [];
+        if (deadPoints) {
+          const label = (c) => inputLimitLabel(c?.link ? { ...c, link: { label: `Link ${linkNumbers[c.link.id] ?? c.link.id}` } } : c);
+          events.push(
+            { value: deadPoints.min, pose: deadPoints.poseMin, label: label(deadPoints.kindMin) },
+            { value: deadPoints.max, pose: deadPoints.poseMax, label: label(deadPoints.kindMax) }
+          );
+        }
+        events = mergeToggles(events, driveRange.full ? TAU4 : null);
+        toggleCache.current = { range: driveRange, events };
+      }
+      let current = driverKind === "rotation" ? theta2 : s2;
+      if (driverKind === "rotation" && !driveRange.full) {
+        current += Math.round(((driveRange.min + driveRange.max) / 2 - current) / TAU4) * TAU4;
+      }
+      const event = adjacentToggle(events, current, direction, driveRange.full ? TAU4 : null);
+      if (!event) {
+        flash("No input limit or stationary position found for this assembly.", 3e3);
+        return;
+      }
+      continuationRef.current = {
+        joints,
+        links,
+        driverKind,
+        crankLink,
+        driverJoint,
+        value: event.value,
+        pos: event.pose,
+        ok: true
+      };
+      if (driverKind === "rotation") setTheta2(event.value);
+      else setS2(event.value);
+      flash(`${event.label} \xB7 ${driverKind === "rotation" ? `\u03B8\u2082 = ${deg(event.value).toFixed(4)}\xB0` : `s\u2082 = ${(event.value * scaleFactor).toFixed(4)} ${unitLabel}`}`, 4e3);
+    };
     const plotData = useMemo(() => {
       if (!plotTarget) return null;
       if (plotTarget.kind === "balance") {
@@ -10035,7 +10387,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       if (showPlots) return;
       const ctx = canvas.getContext("2d");
       const dpr = window.devicePixelRatio || 1;
-      const W = canvas.clientWidth, H = canvas.clientHeight;
+      const { W, H } = cssBox(canvas);
       const lastSize = canvasSizeRef.current;
       if (!lastSize || lastSize.W !== W || lastSize.H !== H || lastSize.dpr !== dpr) {
         canvas.width = W * dpr;
@@ -10079,7 +10431,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       const P3 = useSolved ? solution.recon : Object.fromEntries(joints.map((j) => [j.id, { x: j.x, y: j.y }]));
       const lit = hoverItem || focus;
       const jmapD = new Map(joints.map((jj) => [jj.id, jj]));
-      const ghostRange = driverKind === "rotation" ? thetaRange && !thetaRange.full ? thetaRange : null : sRange;
+      const ghostRange = deadPoints;
       if (useSolved && showGhosts && ghostRange && !fbd) {
         const drawGhost = (pose, tag) => {
           if (!pose) return;
@@ -11508,7 +11860,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           ctx.setLineDash([]);
         }
       }
-    }, [joints, links, elements, img, imgOpacity, showImg, imgOrigin, view, resizeTick, step, pendingLink, tool, placingJoint, hoverJoint, focus, hoverItem, solution, groundLink, driverKind, crankLink, driverJoint, linkNumbers, sliderNumbers, jointNames, theta2, s2, dimensions, dimDraft, hoverDimId, angleMeasures, measureDraft, showAngleMeasures, unitLabel, scaleFactor, calibrating, calibPts, dark, pendingSlider, pendingGear, pendingCam, pairPick, pairCandidates, cursorWorld, isFrameLink, overlayMode, magnify, playing, fbdOn, dynamicsNow, effectiveLinks, explodeFactor, gravityOn, gravityMag, hoverFBD, showPlots, fullPath, showGhosts, showEquiv, showCamContact, fbdShowValues, thetaRange, sRange, resultsTab, balanceResult, slotTravel]);
+    }, [joints, links, elements, img, imgOpacity, showImg, imgOrigin, view, resizeTick, step, pendingLink, tool, placingJoint, hoverJoint, focus, hoverItem, solution, groundLink, driverKind, crankLink, driverJoint, linkNumbers, sliderNumbers, jointNames, theta2, s2, dimensions, dimDraft, hoverDimId, angleMeasures, measureDraft, showAngleMeasures, unitLabel, scaleFactor, calibrating, calibPts, dark, pendingSlider, pendingGear, pendingCam, pairPick, pairCandidates, cursorWorld, isFrameLink, overlayMode, magnify, playing, fbdOn, dynamicsNow, effectiveLinks, explodeFactor, gravityOn, gravityMag, hoverFBD, showPlots, fullPath, showGhosts, showEquiv, showCamContact, fbdShowValues, thetaRange, sRange, deadPoints, resultsTab, balanceResult, slotTravel]);
     useEffect(() => {
       syncCanvasCursor();
     });
@@ -11517,7 +11869,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       if (!canvas || polyMode === "off" || step !== "solve") return;
       const ctx = canvas.getContext("2d");
       const dpr = window.devicePixelRatio || 1;
-      const W = canvas.clientWidth, H = canvas.clientHeight;
+      const { W, H } = cssBox(canvas);
       if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
         canvas.width = W * dpr;
         canvas.height = H * dpr;
@@ -11960,13 +12312,13 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const showLaunch = joints.length === 0 && !recovery && !launchDismissed;
     const suggestRotate = compact && portrait && !rotateDismissed && !showLaunch;
     useEffect(() => {
-      if (!suggestRotate) return;
+      if (!suggestRotate || !active) return;
       const onEsc = (e) => {
         if (e.key === "Escape") setRotateDismissed(true);
       };
       window.addEventListener("keydown", onEsc);
       return () => window.removeEventListener("keydown", onEsc);
-    }, [suggestRotate]);
+    }, [suggestRotate, active]);
     const leftPanelOpen = leftPanelUserOpen && !showLaunch;
     const rightPanelOpen = rightPanelUserOpen && !showLaunch;
     const canNext = stepStatus?.ok && step !== "solve";
@@ -12273,6 +12625,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const canUndo = history.current.past.length > 0;
     const canRedo = history.current.future.length > 0;
     useEffect(() => {
+      if (!active) return;
       const onKey = (e) => {
         const t = e.target;
         if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
@@ -12347,9 +12700,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       };
       window.addEventListener("keydown", onKey);
       return () => window.removeEventListener("keydown", onKey);
-    }, [histTick, step, canNext, showLaunch, jointMenu, joints, tool, pendingLink, dimDraft, measureDraft, fbd]);
+    }, [active, histTick, step, canNext, showLaunch, jointMenu, joints, tool, pendingLink, dimDraft, measureDraft, fbd]);
     const elementScopeNote = "This computes the force or torque carried by an element as the mechanism moves through its prescribed cycle (kinetostatics). The driver's \u03C9/\u03B1 or v/a, set on the Drive step, stays fixed regardless of what the spring or damper does. Use it to size a spring against gravity, check a gas strut, or find peak damper force over a stroke. It does not simulate how the mechanism moves on its own.";
-    const legendEl = React.createElement("div", { style: S.legend }, React.createElement(Leg, { c: T.accent, t: driverKind === "rotation" ? "crank (input link)" : "driven joint (input)" }), React.createElement(Leg, { c: T.accentBlue, t: "moving link" }), React.createElement(Leg, { c: T.ground, t: "ground (link 1)" }), React.createElement(Leg, { c: T.red, t: "grounded joint" }), step === "solve" && traceJoint && React.createElement(Leg, { c: T.resVal, t: `trace: ${jointNames[traceJoint] || traceJoint}` }), step === "solve" && polyMode === "acceleration" && React.createElement(Leg, { c: T.accentBlue, t: "dashed = normal (centripetal)" }), step === "solve" && overlayMode === "vel" && React.createElement(Leg, { c: T.velOverlay, t: "resultant joint velocity" }), step === "solve" && overlayMode === "vel" && React.createElement(Leg, { c: T.velOverlay, t: "arc = link's \u03C9 (CCW+)" }), step === "solve" && overlayMode === "acc" && React.createElement(Leg, { c: T.accOverlay, t: "resultant (absolute) acceleration" }), step === "solve" && overlayMode === "acc" && React.createElement(Leg, { c: T.accOverlay, t: "arc = link's \u03B1 (CCW+)" }), step === "solve" && overlayMode === "acc" && React.createElement(Leg, { c: T.textMuted, t: React.createElement(React.Fragment, null, "pause & magnify a joint for a", React.createElement("sup", null, "n"), "/a", React.createElement("sup", null, "t")) }), step === "solve" && fbdOn && dynamicsNow?.ok && React.createElement(Leg, { c: T.forceOverlay, t: "joint reaction force" }), step === "solve" && fbdOn && dynamicsNow?.ok && React.createElement(Leg, { c: T.torqueColor, t: driverKind === "rotation" ? "input torque (crank)" : "input force (driven slider)" }), step === "solve" && icsOn && !fbd && React.createElement(Leg, { c: "transparent", t: "\u2295 = instant center of rotation (colored per link)" }), step === "solve" && (links.some((lk) => (lk.loads || []).length || lk.appliedT) || joints.some((j) => j.type === "slider" && ((j.loads || []).length || j.appliedT)) || gravityOn && (links.some((lk) => lk.mass != null) || joints.some((j) => j.type === "slider" && j.mass != null))) && React.createElement(Leg, { c: T.loadColor, t: "applied load / torque / weight (gravity)" }));
+    const dynamicsOk = !!dynamicsNow?.ok;
+    const legendEl = useMemo(() => React.createElement("div", { style: S.legend }, React.createElement(Leg, { c: T.accent, t: driverKind === "rotation" ? "crank (input link)" : "driven joint (input)" }), React.createElement(Leg, { c: T.accentBlue, t: "moving link" }), React.createElement(Leg, { c: T.ground, t: "ground (link 1)" }), React.createElement(Leg, { c: T.red, t: "grounded joint" }), step === "solve" && traceJoint && React.createElement(Leg, { c: T.resVal, t: `trace: ${jointNames[traceJoint] || traceJoint}` }), step === "solve" && polyMode === "acceleration" && React.createElement(Leg, { c: T.accentBlue, t: "dashed = normal (centripetal)" }), step === "solve" && overlayMode === "vel" && React.createElement(Leg, { c: T.velOverlay, t: "resultant joint velocity" }), step === "solve" && overlayMode === "vel" && React.createElement(Leg, { c: T.velOverlay, t: "arc = link's \u03C9 (CCW+)" }), step === "solve" && overlayMode === "acc" && React.createElement(Leg, { c: T.accOverlay, t: "resultant (absolute) acceleration" }), step === "solve" && overlayMode === "acc" && React.createElement(Leg, { c: T.accOverlay, t: "arc = link's \u03B1 (CCW+)" }), step === "solve" && overlayMode === "acc" && React.createElement(Leg, { c: T.textMuted, t: React.createElement(React.Fragment, null, "pause & magnify a joint for a", React.createElement("sup", null, "n"), "/a", React.createElement("sup", null, "t")) }), step === "solve" && fbdOn && dynamicsOk && React.createElement(Leg, { c: T.forceOverlay, t: "joint reaction force" }), step === "solve" && fbdOn && dynamicsOk && React.createElement(Leg, { c: T.torqueColor, t: driverKind === "rotation" ? "input torque (crank)" : "input force (driven slider)" }), step === "solve" && icsOn && !fbd && React.createElement(Leg, { c: "transparent", t: "\u2295 = instant center of rotation (colored per link)" }), step === "solve" && (links.some((lk) => (lk.loads || []).length || lk.appliedT) || joints.some((j) => j.type === "slider" && ((j.loads || []).length || j.appliedT)) || gravityOn && (links.some((lk) => lk.mass != null) || joints.some((j) => j.type === "slider" && j.mass != null))) && React.createElement(Leg, { c: T.loadColor, t: "applied load / torque / weight (gravity)" })), [S, T, driverKind, step, traceJoint, jointNames, polyMode, overlayMode, fbdOn, dynamicsOk, icsOn, !!fbd, links, joints, gravityOn]);
+    const staleWarning = useMemo(() => !readout.live.ok && React.createElement("div", { style: { ...S.hint, color: T.red, marginBottom: 10 } }, solveError(readout.live, joints), " Showing the last assembled pose below."), [readout.live, joints, S, T]);
     return React.createElement(ThemeContext.Provider, { value: T }, React.createElement(FocusContext.Provider, { value: focusCtx }, React.createElement("div", { ref: rootRef, style: S.root }, React.createElement("header", { style: {
       ...S.head,
       ...narrow ? { padding: "8px 10px", gap: 8 } : null,
@@ -13152,7 +13507,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       ["vel", "V", T.velOverlay, overlayMode === "vel"],
       ["acc", "A", T.accOverlay, overlayMode === "acc"],
       ["fbd", "FBD", T.forceOverlay, fbdOn]
-    ].map(([mode, label, col, active], i) => {
+    ].map(([mode, label, col, active2], i) => {
       const isFbd = mode === "fbd";
       const disabled = isFbd && !fbdOn && !dynamicsNow?.ok;
       const onClick = () => {
@@ -13180,8 +13535,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
             font: isFbd ? "700 11px ui-monospace,monospace" : "800 13px ui-monospace,monospace",
             border: "none",
             borderLeft: i > 0 ? `1px solid ${T.border2}` : "none",
-            background: active ? col : T.zoomBtnBg,
-            color: active ? T.bg : T.text,
+            background: active2 ? col : T.zoomBtnBg,
+            color: active2 ? T.bg : T.text,
             opacity: disabled ? 0.4 : 1
           }
         },
@@ -13265,7 +13620,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     ), (driverKind === "rotation" ? thetaRange && !thetaRange.full : !!sRange) && React.createElement(
       "button",
       {
-        title: fbd ? "Hidden while FBD is showing" : showGhosts ? "Hide the two dead-point limit poses" : "Show the two dead-point limit poses faintly behind the live mechanism",
+        title: fbd ? "Hidden while FBD is showing" : showGhosts ? "Hide the two input-limit poses" : "Show the two input-limit poses faintly behind the live mechanism",
         onClick: () => setShowGhosts((v) => !v),
         style: {
           width: 26,
@@ -13398,7 +13753,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       },
       "build up"
     ), polyBuildOn && React.createElement(React.Fragment, null, React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyBuildStep((s) => Math.max(0, s - 1)), disabled: polyBuildStep <= 0 }, "\u25C2"), React.createElement("span", { style: { ...S.zoomLbl, minWidth: 30 } }, polyBuildStep, "/", polyBuildMax), React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyBuildStep((s) => Math.min(polyBuildMax, s + 1)), disabled: polyBuildStep >= polyBuildMax }, "\u25B8"))), React.createElement("div", { style: S.zoomBox }, React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyView((v) => ({ ...v, zoom: Math.min(40, v.zoom * 1.25) })) }, "+"), React.createElement("span", { style: S.zoomLbl }, (polyView.zoom * 100).toFixed(polyView.zoom < 0.1 ? 1 : 0), "%"), React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyView((v) => ({ ...v, zoom: Math.max(0.02, v.zoom * 0.8) })) }, "\u2212"), React.createElement("button", { style: S.zoomBtn, onClick: () => setPolyView({ zoom: 1, panX: 0, panY: 0 }) }, "\u27F3"), React.createElement("button", { style: { ...S.zoomBtn, width: "auto", padding: "0 8px", fontSize: 11 }, onClick: () => setPolyView({ zoom: 1, panX: 0, panY: 0 }) }, "Fit")))), step === "solve" &&
-    React.createElement("div", { style: { ...S.controls, ...compact ? { flexWrap: "wrap", gap: 8, padding: "8px 10px" } : null } }, React.createElement("button", { className: "btn", title: playing ? "Pause" : "Play", onClick: () => setPlaying((p) => {
+    React.createElement("div", { style: { ...S.controls, flexWrap: "wrap", ...compact ? { gap: 8, padding: "8px 10px" } : null } }, React.createElement("button", { className: "btn", style: { padding: "7px 9px" }, title: playing ? "Pause" : "Play", onClick: () => setPlaying((p) => {
       if (!p) dirRef.current = 1;
       return !p;
     }), disabled: !solution.ok }, React.createElement(Icon, { name: playing ? "pause" : "play" })), driverKind === "rotation" ? React.createElement("div", { style: { flex: "1 1 180px", display: "flex", alignItems: "center", gap: 10, minWidth: 0 } }, React.createElement("span", { style: S.tick }, "\u03B8\u2082"), React.createElement(
@@ -13467,7 +13822,29 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         },
         style: { ...S.val, width: 70, textAlign: "right" }
       }
-    ), React.createElement("span", { style: S.tick }, unitLabel)), React.createElement("label", { style: S.spd }, React.createElement("span", { style: S.tick }, "speed"), React.createElement("input", { type: "range", min: 0.01, max: 3, step: 0.01, value: speed, onChange: (e) => setSpeed(parseFloat(e.target.value)), style: { width: 70 } }), React.createElement("span", { style: S.val }, speed.toFixed(2), "\xD7")), React.createElement(
+    ), React.createElement("span", { style: S.tick }, unitLabel)), React.createElement("div", { role: "group", "aria-label": "Input limits and stationary positions", style: { display: "flex", gap: 2, flexShrink: 0 } }, React.createElement(
+      "button",
+      {
+        className: "btn",
+        style: { padding: "7px 9px" },
+        disabled: !driveRange || !driverRef,
+        title: "Previous input limit or stationary position (pauses playback)",
+        "aria-label": "Previous input limit or stationary position",
+        onClick: () => goToToggle(-1)
+      },
+      React.createElement(Icon, { name: "limitPrev", size: 15 })
+    ), React.createElement(
+      "button",
+      {
+        className: "btn",
+        style: { padding: "7px 9px" },
+        disabled: !driveRange || !driverRef,
+        title: "Next input limit or stationary position (pauses playback)",
+        "aria-label": "Next input limit or stationary position",
+        onClick: () => goToToggle(1)
+      },
+      React.createElement(Icon, { name: "limitNext", size: 15 })
+    )), React.createElement("label", { style: S.spd }, React.createElement("span", { style: S.tick }, "speed"), React.createElement("input", { type: "range", min: 0.01, max: 3, step: 0.01, value: speed, onChange: (e) => setSpeed(parseFloat(e.target.value)), style: { width: 70 } }), React.createElement("span", { style: S.val }, speed.toFixed(2), "\xD7")), React.createElement(
       "button",
       {
         className: "btn",
@@ -13503,10 +13880,10 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         style: rightPanelOpen ? { position: "absolute", top: 8, right: 8, padding: "4px 6px" } : { position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)", padding: "4px 6px" }
       },
       React.createElement(Icon, { name: rightPanelOpen ? "panelRightClose" : "panelRightOpen", size: 17 })
-    ), React.createElement("div", { style: { display: rightPanelOpen ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0 } }, !(step === "solve" && (solution.ok || lastGoodSolutionRef.current)) && React.createElement("div", { style: { flexShrink: 0, ...S.panelInset } }, React.createElement("div", { style: S.secLabel }, step === "solve" ? "Results" : "Info")), step === "solve" && (solution.ok || lastGoodSolutionRef.current) ? React.createElement(
+    ), React.createElement("div", { style: { display: rightPanelOpen ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0 } }, !(step === "solve" && readout.shown) && React.createElement("div", { style: { flexShrink: 0, ...S.panelInset } }, React.createElement("div", { style: S.secLabel }, step === "solve" ? "Results" : "Info")), step === "solve" && readout.shown ? React.createElement(
       ResultsPanel,
       {
-        solution: solution.ok ? solution : lastGoodSolutionRef.current,
+        solution: readout.shown,
         joints,
         links,
         elements,
@@ -13522,10 +13899,10 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         scaleFactor,
         unitLabel,
         fourbarQuality,
-        onCheckFourbar: computeFourbarQuality,
-        dynamicsNow,
+        onCheckFourbar: resultsHandlers.onCheckFourbar,
+        dynamicsNow: readout.dynamicsNow,
         dynamicsCycle,
-        onCheckDynamicsCycle: computeDynamicsCycle,
+        onCheckDynamicsCycle: resultsHandlers.onCheckDynamicsCycle,
         dynamicsEligible,
         resultsTab,
         setResultsTab,
@@ -13533,14 +13910,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         balanceResult,
         balanceBusy,
         balanceProgress,
-        onBalance: runBalance,
-        onStopBalance: stopBalance,
-        onRemoveBalance: removeBalance,
-        onCompareBalance: () => {
-          setPlotTarget({ kind: "balance", id: crankLink });
-          setShowPlots(true);
-        },
-        staleWarning: !solution.ok && React.createElement("div", { style: { ...S.hint, color: T.red, marginBottom: 10 } }, solveError(solution, joints), " Showing the last assembled pose below."),
+        onBalance: resultsHandlers.onBalance,
+        onStopBalance: resultsHandlers.onStopBalance,
+        onRemoveBalance: resultsHandlers.onRemoveBalance,
+        onCompareBalance: resultsHandlers.onCompareBalance,
+        staleWarning,
         legend: legendEl
       }
     ) : React.createElement("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", ...S.panelInset } }, step === "topology" && React.createElement(React.Fragment, null, tool === "pin" && React.createElement(P, null, "A ", React.createElement("b", null, "pin"), " is one click. It's the ordinary revolute joint: two bodies sharing a hinge, which removes two degrees of freedom."), tool === "slider" && React.createElement(P, null, "A ", React.createElement("b", null, "slider"), " needs two clicks: the first places it, the second sets the guide line it slides along. Ground it and the rail is fixed to the frame. Leave it free and it becomes a pin riding in a slot on another link, which you assign under ", React.createElement("b", null, "Pin-in-slot"), "."), tool === "gear" && React.createElement(React.Fragment, null, React.createElement(P, null, "A ", React.createElement("b", null, "gear"), " takes two clicks: fixed axis, then pitch radius. Then a third on the gear it ", React.createElement("b", null, "meshes with"), ", unless the radius already snapped onto one."), React.createElement(P, null, "That last click is the pair. A gear meshing with nothing removes no degree of freedom, so it's drawn amber until it's paired.")), tool === "cam" && React.createElement(React.Fragment, null, React.createElement(P, null, "A ", React.createElement("b", null, "cam"), " takes two clicks: fixed shaft, then base-circle radius (a starting size the designer can overrule). Then a third on the ", React.createElement("b", null, "follower it drives"), ": a grounded slider, or any joint on the follower arm."), React.createElement(P, null, "That last click is the pair. A cam driving nothing removes no degree of freedom, so it's drawn amber until it's paired.")), tool === "rigid" && React.createElement(React.Fragment, null, React.createElement(P, null, "Click 2-4 joints in sequence to group them into one rigid link (binary, ternary, or quaternary), then hit ", React.createElement("b", null, "Finish link"), ". Links are numbered in the order you create them. Connect every joint into the mechanism."), React.createElement("div", { style: { ...S.hint, marginBottom: 8 } }, React.createElement("b", null, "Middle-click"), " the canvas, or press ", React.createElement("b", null, "Enter"), ", to finish a link (2+ joints picked) without moving the pointer off the drawing.")), tool === "linear" && React.createElement(React.Fragment, null, React.createElement(P, null, "Click two joints to connect them with a linear spring or damper. It pulls or pushes along the line between them. Either joint may be a grounded pin, acting as a fixed anchor. It commits the instant the 2nd joint is picked. Values (stiffness, rest length, damping) are set on the Elements step."), React.createElement("div", { style: { ...S.hint, marginBottom: 8 } }, elementScopeNote)), tool === "torsional" && React.createElement(React.Fragment, null, React.createElement(P, null, "Add a torsional spring or damper between two links, or a link and the fixed frame. It reacts to the relative angle between them. Values (stiffness, rest angle, damping) are set on the Elements step."), React.createElement("div", { style: { ...S.hint, marginBottom: 8 } }, elementScopeNote)), tool === "ground" && React.createElement(P, null, "Click a joint to fix it to the frame, or click it again to release it. Grounding is what turns a chain of bars into a mechanism: without it every link is free to float, and the whole assembly has three degrees of freedom it should not. A link with every joint grounded becomes the frame (Link 1). That is optional: one or more grounded joints is enough."), joints.some((j) => j.type === "slider" && !j.ground) && React.createElement(React.Fragment, null, React.createElement("div", { style: S.secLabel }, "Pin-in-slot (rotating guide)"), React.createElement(P, null, "A free slider is a ", React.createElement("b", null, "pin riding in a slot machined into another link"), ". For example, the crank pin of a crank-shaper riding in a slotted rocker. Select the slotted link in the panel opposite. The slider's guide then rotates with it, producing Coriolis acceleration. If the link's joints do not define a line through the slider, one click adds a ", React.createElement("b", null, "guide point"), " to define it."))), step === "geometry" && React.createElement(P, null, "First set the scale from the image, then pin exact ", React.createElement("b", null, "driving dimensions"), ". Calibration only scales the displayed numbers: joints do not move, so the traced overlay stays aligned. Dimensions then refine the geometry to exact values."), step !== "solve" && step !== "topology" && step !== "geometry" && React.createElement(P, null, "Complete the steps to solve. Results appear here once the loop is assembled and driven."), step === "solve" && !solution.ok && !lastGoodSolutionRef.current && React.createElement(P, null, solveError(solution, joints)), React.createElement("div", { style: { ...S.hint, marginTop: 10, display: "flex", flexDirection: "column", gap: 6 } }, React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: "4px 12px" } }, shortcutHints.map(([key, desc]) => React.createElement("span", { key }, React.createElement("b", { style: { color: T.text } }, key), " ", desc))), React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: "4px 12px" } }, mouseHints.map(([key, desc]) => React.createElement("span", { key }, React.createElement("b", { style: { color: T.text } }, key), " ", desc)))), legendEl)))))));
@@ -14854,7 +15228,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   };
   var PROFILE_SAMPLES = 720;
   var DEFAULT_HARMONICS = 12;
-  function Cam({ dark, setDark, onClose, backName = "Analyzer", incoming = null, onReady = null, onUseInMechanism = null, onSynthesizeDwell = null }) {
+  function Cam({ dark, setDark, onClose, backName = "Analyzer", incoming = null, onReady = null, onUseInMechanism = null, onSynthesizeDwell = null, active = true }) {
     const T = dark ? DARK : LIGHT;
     const [recovery, setRecovery] = useState(() => readCamAutosave());
     const [segments, setSegments] = useState(DEFAULT_SEGMENTS);
@@ -15130,17 +15504,20 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       }
     }, [result, gifBusy, size, T, prog, geom, view, layers, stations, peaks, speed]);
     useEffect(() => {
-      if (!playing) return;
-      let raf = 0, last = performance.now();
+      if (!playing || !active) return;
+      let raf = 0;
+      const clock = frameClock();
       const tick = (now) => {
-        const dt = (now - last) / 1e3;
-        last = now;
+        const dt = clock.dt(now);
         setTheta((t) => ((t + dt * 60 * speedRef.current) % 360 + 360) % 360);
         raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);
-      return () => cancelAnimationFrame(raf);
-    }, [playing]);
+      return () => {
+        cancelAnimationFrame(raf);
+        clock.stop();
+      };
+    }, [playing, active]);
     const onWheel = useCallback((e) => {
       e.preventDefault();
       const r = e.currentTarget.getBoundingClientRect();
@@ -15771,7 +16148,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     render() {
       if (!this.state.err) return this.props.children;
       const subject = this.props.subject || "app";
-      const wrap2 = {
+      const wrap3 = {
         height: "100vh",
         display: "flex",
         flexDirection: "column",
@@ -15791,7 +16168,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       } catch {
         saved = null;
       }
-      return React.createElement("div", { style: wrap2 }, React.createElement("div", { style: { fontSize: 15, fontWeight: 700, letterSpacing: 2, color: "#c0344d" } }, "SOMETHING WENT WRONG"), React.createElement("div", { style: { maxWidth: "42em", lineHeight: 1.5 } }, "The ", subject, " hit an unexpected error and had to stop.", saved ? React.createElement(React.Fragment, null, " ", saved.describe) : React.createElement(React.Fragment, null, " Reloading should get you going again.")), React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" } }, saved && React.createElement("button", { className: "btn pri", onClick: saved.onDownload }, saved.label), React.createElement("button", { className: "btn", onClick: () => window.location.reload() }, "Reload")), React.createElement("details", { style: { marginTop: 6, maxWidth: "42em", textAlign: "left" } }, React.createElement("summary", { style: { cursor: "pointer", color: "#8a96ad" } }, "Error details"), React.createElement("pre", { style: { whiteSpace: "pre-wrap", wordBreak: "break-word", fontSize: 11, color: "#8a96ad" } }, String(this.state.err && (this.state.err.stack || this.state.err.message || this.state.err)))));
+      return React.createElement("div", { style: wrap3 }, React.createElement("div", { style: { fontSize: 15, fontWeight: 700, letterSpacing: 2, color: "#c0344d" } }, "SOMETHING WENT WRONG"), React.createElement("div", { style: { maxWidth: "42em", lineHeight: 1.5 } }, "The ", subject, " hit an unexpected error and had to stop.", saved ? React.createElement(React.Fragment, null, " ", saved.describe) : React.createElement(React.Fragment, null, " Reloading should get you going again.")), React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" } }, saved && React.createElement("button", { className: "btn pri", onClick: saved.onDownload }, saved.label), React.createElement("button", { className: "btn", onClick: () => window.location.reload() }, "Reload")), React.createElement("details", { style: { marginTop: 6, maxWidth: "42em", textAlign: "left" } }, React.createElement("summary", { style: { cursor: "pointer", color: "#8a96ad" } }, "Error details"), React.createElement("pre", { style: { whiteSpace: "pre-wrap", wordBreak: "break-word", fontSize: 11, color: "#8a96ad" } }, String(this.state.err && (this.state.err.stack || this.state.err.message || this.state.err)))));
     }
   };
   var recoverKinemech = (readAutosave2, downloadKinemech2) => () => {
@@ -15803,6 +16180,85 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       onDownload: () => downloadKinemech2(saved, "recovered.kinemech")
     };
   };
+
+  function synthTogglePose(config) {
+    if (!config) return null;
+    if (config.generic) return config.pose;
+    if (!config.sol || config.dwell && !config.D) return null;
+    return {
+      O2: config.O2,
+      O4: config.O4,
+      A: config.sol.A,
+      B: config.sol.B,
+      ...config.dwell ? { O6: config.O6, D: config.D } : {}
+    };
+  }
+  function genericParts(mech) {
+    const moving = new Set(mech.steps.map((s) => s.out));
+    const joints = Object.keys(mech.build).map((id) => ({
+      id,
+      ground: !moving.has(id) || Object.hasOwn(mech.rails || {}, id),
+      type: Object.hasOwn(mech.rails || {}, id) ? "slider" : "pin",
+      sliderAngle: mech.rails?.[id],
+      label: mech.labels?.[id] || id
+    }));
+    const links = mech.links.map((l, i) => ({ ...l, id: i, label: `Link ${l.n}` }));
+    const driver = mech.steps.find((s) => s.kind === "crank");
+    const driverLink = links.find((l) => l.joints.includes(driver?.pivot) && l.joints.includes(driver?.out));
+    return { joints, links, driverLink };
+  }
+  function synthToggleOutputs(config, railAngle = 0) {
+    if (!config) return [];
+    if (config.generic) {
+      const { joints: joints2, links: links2, driverLink } = genericParts(config.mech);
+      return toggleOutputs(joints2, links2, driverLink?.id, null);
+    }
+    if (config.slider) return toggleOutputs([
+      { id: "O2", ground: true },
+      { id: "A" },
+      { id: "B", ground: true, type: "slider", sliderAngle: railAngle, label: "Slider" }
+    ], [], null, null);
+    const joints = [{ id: "O4", ground: true }, { id: "B" }];
+    const links = [{ id: 4, joints: ["O4", "B"], label: "Link 4" }];
+    if (config.dwell) {
+      joints.push({ id: "O6", ground: true }, { id: "D" });
+      links.push({ id: 6, joints: ["O6", "D"], label: "Link 6" });
+    }
+    return toggleOutputs(joints, links, null, null);
+  }
+  function outputTurns(config) {
+    const d = Math.hypot(config.O4.x - config.O2.x, config.O4.y - config.O2.y);
+    const L = [config.a, config.b, config.c, d], s = Math.min(...L), l = Math.max(...L);
+    const tol = 1e-6 * Math.max(l, 1);
+    if (s + l > L.reduce((t, x) => t + x, 0) - s - l + tol) return false;
+    return Math.abs(config.c - s) <= tol || Math.abs(d - s) <= tol;
+  }
+  function synthInputLimit(config, pose, railAngle = 0) {
+    if (!config || !pose || config.dwell) return null;
+    if (config.generic) {
+      const { joints, links, driverLink } = genericParts(config.mech);
+      return classifyInputLimit(pose, joints, links, driverLink?.id, null, () => null);
+    }
+    const crank = { id: 2, joints: ["O2", "A"], label: "Link 2" }, coupler = { id: 3, joints: ["A", "B"], label: "Link 3" };
+    if (config.slider) {
+      return classifyInputLimit(
+        pose,
+        [{ id: "O2", ground: true }, { id: "A" }, { id: "B", ground: true, type: "slider", sliderAngle: railAngle }],
+        [crank, coupler],
+        2,
+        null,
+        () => false
+      );
+    }
+    return classifyInputLimit(
+      pose,
+      [{ id: "O2", ground: true }, { id: "O4", ground: true }, { id: "A" }, { id: "B" }],
+      [crank, coupler, { id: 4, joints: ["O4", "B"], label: "Link 4" }],
+      2,
+      null,
+      (id) => id === 4 ? outputTurns(config) : null
+    );
+  }
 
   var deg2 = (r) => r * 180 / Math.PI;
   var rad = (d) => d * Math.PI / 180;
@@ -16285,7 +16741,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   //  FUNCTION GENERATION (Freudenstein, 3 to 5 precision points)
   // ============================================================================
   var angErr = (aRad, bRad) => ((deg2(aRad) - deg2(bRad) + 180) % 360 + 360) % 360 - 180;
-  var TAU5 = 2 * Math.PI;
+  var TAU6 = 2 * Math.PI;
   var HIT_TOL_DEG = 1e-5;
   function det3(m, r0, r1, r2, c) {
     const [a, b, e] = c;
@@ -16299,7 +16755,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const out = [];
     let tPrev = 0, gPrev = g(0);
     for (let i = 1; i <= steps; i++) {
-      const t = i / steps * TAU5, gt = g(t);
+      const t = i / steps * TAU6, gt = g(t);
       if (gPrev === 0) out.push(tPrev);
       else if (gPrev * gt < 0) {
         let lo = tPrev, hi = t, glo = gPrev;
@@ -16349,13 +16805,13 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       const NA = 180, found = [];
       let prev = null;
       for (let i = 0; i <= NA; i++) {
-        const A = i / NA * TAU5;
+        const A = i / NA * TAU6;
         const cur = rootsOnCircle((B) => g1(A, B), 180).map((B) => ({ A, B, s: g2(A, B) }));
         if (prev) {
           for (const p of cur) {
             let best = null, bd = Infinity;
             for (const q of prev) {
-              const dB = Math.abs(((p.B - q.B + Math.PI) % TAU5 + TAU5) % TAU5 - Math.PI);
+              const dB = Math.abs(((p.B - q.B + Math.PI) % TAU6 + TAU6) % TAU6 - Math.PI);
               if (dB < bd) {
                 bd = dB;
                 best = q;
@@ -16395,7 +16851,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         lastFail = r;
         continue;
       }
-      const key2 = [r.a, r.b, r.c].map((x) => x.toPrecision(7)).join() + "|" + (((A + r.phase2) % TAU5 + TAU5) % TAU5).toFixed(5) + "|" + (((B + r.phase4) % TAU5 + TAU5) % TAU5).toFixed(5);
+      const key2 = [r.a, r.b, r.c].map((x) => x.toPrecision(7)).join() + "|" + (((A + r.phase2) % TAU6 + TAU6) % TAU6).toFixed(5) + "|" + (((B + r.phase4) % TAU6 + TAU6) % TAU6).toFixed(5);
       if (!built.some((q) => q.key === key2)) built.push({ ...r, key: key2 });
     }
     if (!built.length) return lastFail || { ok: false, reason: "no-linkage", points: n2 };
@@ -19109,8 +19565,10 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   var SunIcon2 = () => React.createElement("svg", { width: "13", height: "13", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.3", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("circle", { cx: "12", cy: "12", r: "4.2" }), React.createElement("path", { d: "M12 1.8v2.4M12 19.8v2.4M4.3 4.3l1.7 1.7M18 18l1.7 1.7M1.8 12h2.4M19.8 12h2.4M4.3 19.7l1.7-1.7M18 6l1.7-1.7" }));
   var MoonIcon2 = () => React.createElement("svg", { width: "12.5", height: "12.5", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.3", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" }));
   var BackIcon2 = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.4", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M15 5 L8 12 L15 19" }));
-  var PlayIcon2 = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "currentColor", stroke: "none" }, React.createElement("path", { d: "M8 5v14l11-7-11-7Z" }));
-  var PauseIcon2 = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round" }, React.createElement("path", { d: "M8 5v14M16 5v14" }));
+  var PlayIcon2 = () => React.createElement("svg", { width: "15", height: "15", viewBox: "0 0 24 24", fill: "currentColor", stroke: "none" }, React.createElement("path", { d: "M8 5v14l11-7-11-7Z" }));
+  var PauseIcon2 = () => React.createElement("svg", { width: "15", height: "15", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round" }, React.createElement("path", { d: "M8 5v14M16 5v14" }));
+  var LimitPrevIcon = () => React.createElement("svg", { width: "15", height: "15", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true" }, React.createElement("path", { d: "M6 5v14m12-14-7 7 7 7" }));
+  var LimitNextIcon = () => React.createElement("svg", { width: "15", height: "15", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true" }, React.createElement("path", { d: "M18 5v14M6 5l7 7-7 7" }));
   var GifIcon2 = () => React.createElement("svg", { width: "15", height: "15", viewBox: "0 0 24 24" }, React.createElement("text", { x: "12", y: "17", fontSize: "16", fontWeight: "700", letterSpacing: "-1.1", textAnchor: "middle", fill: "currentColor" }, "GIF"));
   var ResetIcon = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M3 12a9 9 0 1 0 2.13-5.82" }), React.createElement("path", { d: "M3 4v5h5" }));
   var ConstructionIcon = () => React.createElement("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round" }, React.createElement("path", { d: "M12 3v2.2" }), React.createElement("path", { d: "M12 5.2 5 20M12 5.2l7 14.8" }), React.createElement("path", { d: "M5 20h14" }));
@@ -19541,7 +19999,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       ["Dwell 1 span", `${fmt2(r.dwellBetaRequestedDeg, 1)}\xB0`, `${fmt2(r.dwellBetaAchievedDeg, 1)}\xB0`],
       ["Dwell 2 span", `${fmt2(r.dwellBetaRequestedDeg2, 1)}\xB0`, `${fmt2(r.dwellBetaAchievedDeg2, 1)}\xB0`],
       ["Swing between", `${fmt2(r.swingRequestedDeg, 1)}\xB0`, `${fmt2(r.swingDeg, 1)}\xB0`]
-    ] }), React.createElement("div", { style: { height: 6 } }), React.createElement(Row2, { T, k: "Dwell 1 peak-to-peak", v: `${fmt2(r.ptpDeg, 3)}\xB0` }), React.createElement(Row2, { T, k: "Dwell 2 peak-to-peak", v: `${fmt2(r.ptpDeg2, 3)}\xB0` }), React.createElement(Row2, { T, k: "Arc radii R\u2081, R\u2082", v: `${fmt2(r.R1, 3)}, ${fmt2(r.R2, 3)}` })) : React.createElement(React.Fragment, null, React.createElement(AskedTable, { T, rows: [["Dwell span", `${fmt2(r.dwellBetaRequestedDeg, 1)}\xB0`, `${fmt2(r.dwellBetaAchievedDeg, 1)}\xB0`]] }), React.createElement("div", { style: { height: 6 } }), React.createElement(Row2, { T, k: "Peak-to-peak during it", v: `${fmt2(r.ptpDeg, 3)}\xB0` })), React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, lineHeight: 1.4, marginTop: 4 } }, "The actual swing of the output link across the dwell window, from a full six-bar simulation. This is not the arc-fit residual; that is only used to select the window.")), React.createElement("div", { style: S.resGroup }, "Output stroke"), React.createElement("div", { style: S.resCard }, React.createElement(Row2, { T, k: "Over the full cycle", v: `${fmt2(r.strokeDeg, 2)}\xB0` })), React.createElement("div", { style: S.resGroup }, "Defects"), React.createElement("div", { style: { ...S.resCard, borderColor: clean ? T.accent : T.red, paddingTop: 2 } }, React.createElement(Defect, { bad: r.defects.reach, label: "Dyad reach", note: "Circle(P,R) and circle(O6,L6) fail to intersect somewhere in the cycle. The 5-6 dyad comes apart, so the mechanism cannot complete a full crank rotation as built." }), React.createElement(Defect, { bad: r.defects.branch, label: "Dyad branch", note: "The 5-6 dyad changes assembly mode somewhere in the cycle. Physically, it would have to be taken apart and reassembled in the mirrored position to get past that point." }), React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, lineHeight: 1.4, marginTop: 6 } }, clean ? "The dyad stays assembled and on the same branch across the whole cycle." : "These are independent of the four-bar's own dead points and are the most likely source of a plausible-looking animation that is not actually buildable. Check both before trusting the design.")), React.createElement("div", { style: S.resGroup }, "Four-bar link lengths"), React.createElement("div", { style: S.resCard }, React.createElement(Row2, { T, k: "Crank (2)  a", v: fmt2(r.a) }), React.createElement(Row2, { T, k: "Coupler (3)  b", v: fmt2(r.b) }), React.createElement(Row2, { T, k: "Rocker (4)  c", v: fmt2(r.c) }), React.createElement(Row2, { T, k: "Ground (1)  d", v: fmt2(r.d) })), React.createElement("div", { style: S.resGroup }, "5-6 dyad"), React.createElement("div", { style: S.resCard }, React.createElement(Row2, { T, k: "Link 5  R", v: fmt2(r.R) }), React.createElement(Row2, { T, k: "Link 6  L\u2086", v: fmt2(r.L6) }), React.createElement(Row2, { T, k: "O\u2086 direction", v: `${fmt2(deg2(r.phi6), 1)}\xB0` })), React.createElement("div", { style: S.resGroup }, "Pivots & arc center"), React.createElement("div", { style: S.resCard }, React.createElement(Row2, { T, k: "O\u2082", v: `(${fmt2(r.O2.x, 2)}, ${fmt2(r.O2.y, 2)})` }), React.createElement(Row2, { T, k: "O\u2084", v: `(${fmt2(r.O4.x, 2)}, ${fmt2(r.O4.y, 2)})` }), React.createElement(Row2, { T, k: "O\u2086", v: `(${fmt2(r.O6.x, 2)}, ${fmt2(r.O6.y, 2)})` }), React.createElement(Row2, { T, k: "C (arc center)", v: `(${fmt2(r.C.x, 2)}, ${fmt2(r.C.y, 2)})` }), React.createElement(Row2, { T, k: "Assembly", v: r.circuit === 1 ? "Open" : "Crossed" })), React.createElement("div", { style: S.resGroup }, "Grashof check"), React.createElement("div", { style: { ...S.resCard, borderColor: r.g.rotatable ? T.accent : T.red } }, React.createElement("div", { style: { fontWeight: 700, color: r.g.rotatable ? T.resVal : T.red, fontSize: 12.5, marginBottom: 4 } }, r.g.label ?? r.g.type), React.createElement("div", { style: { fontSize: 11, color: T.textSub, lineHeight: 1.4 } }, r.g.note)), React.createElement("div", { style: S.resGroup }, "Transmission angles"), React.createElement("div", { style: S.resCard }, r.tr ? React.createElement(React.Fragment, null, React.createElement(Row2, { T, k: "Four-bar \u03B3 min", v: `${fmt2(r.tr.min, 1)}\xB0` }), React.createElement(Row2, { T, k: "Four-bar \u03B3 max", v: `${fmt2(r.tr.max, 1)}\xB0` })) : React.createElement(Row2, { T, k: "Four-bar \u03B3", v: "no assemblable angles found" }), React.createElement(Row2, { T, k: "5-6 dyad worst", v: `${fmt2(r.dyadTr.worst, 1)}\xB0` }), React.createElement("div", { style: { fontSize: 10.5, color: r.tr && r.tr.worst < 40 || r.dyadTr.worst < 40 ? T.red : T.textMuted, marginTop: 4, lineHeight: 1.4 } }, r.tr && r.tr.worst < 40 || r.dyadTr.worst < 40 ? "At least one stage falls outside the recommended 40\xB0\u2013140\xB0 band. Poor force transmission near that posture." : "Both stages stay within 40\xB0\u2013140\xB0: acceptable transmission throughout.")), React.createElement("div", { style: { ...S.hint, marginTop: 14 } }, "This is a best-fit solution, not an exact one. The four-bar, fitted arc, and 5-6 dyad are all searched for the best output hold. The search is seeded deterministically, so the same beta, scale, and seed always return the same design. Re-run after changing either input."));
+    ] }), React.createElement("div", { style: { height: 6 } }), React.createElement(Row2, { T, k: "Dwell 1 peak-to-peak", v: `${fmt2(r.ptpDeg, 3)}\xB0` }), React.createElement(Row2, { T, k: "Dwell 2 peak-to-peak", v: `${fmt2(r.ptpDeg2, 3)}\xB0` }), React.createElement(Row2, { T, k: "Arc radii R\u2081, R\u2082", v: `${fmt2(r.R1, 3)}, ${fmt2(r.R2, 3)}` })) : React.createElement(React.Fragment, null, React.createElement(AskedTable, { T, rows: [["Dwell span", `${fmt2(r.dwellBetaRequestedDeg, 1)}\xB0`, `${fmt2(r.dwellBetaAchievedDeg, 1)}\xB0`]] }), React.createElement("div", { style: { height: 6 } }), React.createElement(Row2, { T, k: "Peak-to-peak during it", v: `${fmt2(r.ptpDeg, 3)}\xB0` })), React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, lineHeight: 1.4, marginTop: 4 } }, "The actual swing of the output link across the dwell window, from a full six-bar simulation. This is not the arc-fit residual; that is only used to select the window.")), React.createElement("div", { style: S.resGroup }, "Output stroke"), React.createElement("div", { style: S.resCard }, React.createElement(Row2, { T, k: "Over the full cycle", v: `${fmt2(r.strokeDeg, 2)}\xB0` })), React.createElement("div", { style: S.resGroup }, "Defects"), React.createElement("div", { style: { ...S.resCard, borderColor: clean ? T.accent : T.red, paddingTop: 2 } }, React.createElement(Defect, { bad: r.defects.reach, label: "Dyad reach", note: "Circle(P,R) and circle(O6,L6) fail to intersect somewhere in the cycle. The 5-6 dyad comes apart, so the mechanism cannot complete a full crank rotation as built." }), React.createElement(Defect, { bad: r.defects.branch, label: "Dyad branch", note: "The 5-6 dyad changes assembly mode somewhere in the cycle. Physically, it would have to be taken apart and reassembled in the mirrored position to get past that point." }), React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, lineHeight: 1.4, marginTop: 6 } }, clean ? "The dyad stays assembled and on the same branch across the whole cycle." : "These are independent of the four-bar's own input limits and are the most likely source of a plausible-looking animation that is not actually buildable. Check both before trusting the design.")), React.createElement("div", { style: S.resGroup }, "Four-bar link lengths"), React.createElement("div", { style: S.resCard }, React.createElement(Row2, { T, k: "Crank (2)  a", v: fmt2(r.a) }), React.createElement(Row2, { T, k: "Coupler (3)  b", v: fmt2(r.b) }), React.createElement(Row2, { T, k: "Rocker (4)  c", v: fmt2(r.c) }), React.createElement(Row2, { T, k: "Ground (1)  d", v: fmt2(r.d) })), React.createElement("div", { style: S.resGroup }, "5-6 dyad"), React.createElement("div", { style: S.resCard }, React.createElement(Row2, { T, k: "Link 5  R", v: fmt2(r.R) }), React.createElement(Row2, { T, k: "Link 6  L\u2086", v: fmt2(r.L6) }), React.createElement(Row2, { T, k: "O\u2086 direction", v: `${fmt2(deg2(r.phi6), 1)}\xB0` })), React.createElement("div", { style: S.resGroup }, "Pivots & arc center"), React.createElement("div", { style: S.resCard }, React.createElement(Row2, { T, k: "O\u2082", v: `(${fmt2(r.O2.x, 2)}, ${fmt2(r.O2.y, 2)})` }), React.createElement(Row2, { T, k: "O\u2084", v: `(${fmt2(r.O4.x, 2)}, ${fmt2(r.O4.y, 2)})` }), React.createElement(Row2, { T, k: "O\u2086", v: `(${fmt2(r.O6.x, 2)}, ${fmt2(r.O6.y, 2)})` }), React.createElement(Row2, { T, k: "C (arc center)", v: `(${fmt2(r.C.x, 2)}, ${fmt2(r.C.y, 2)})` }), React.createElement(Row2, { T, k: "Assembly", v: r.circuit === 1 ? "Open" : "Crossed" })), React.createElement("div", { style: S.resGroup }, "Grashof check"), React.createElement("div", { style: { ...S.resCard, borderColor: r.g.rotatable ? T.accent : T.red } }, React.createElement("div", { style: { fontWeight: 700, color: r.g.rotatable ? T.resVal : T.red, fontSize: 12.5, marginBottom: 4 } }, r.g.label ?? r.g.type), React.createElement("div", { style: { fontSize: 11, color: T.textSub, lineHeight: 1.4 } }, r.g.note)), React.createElement("div", { style: S.resGroup }, "Transmission angles"), React.createElement("div", { style: S.resCard }, r.tr ? React.createElement(React.Fragment, null, React.createElement(Row2, { T, k: "Four-bar \u03B3 min", v: `${fmt2(r.tr.min, 1)}\xB0` }), React.createElement(Row2, { T, k: "Four-bar \u03B3 max", v: `${fmt2(r.tr.max, 1)}\xB0` })) : React.createElement(Row2, { T, k: "Four-bar \u03B3", v: "no assemblable angles found" }), React.createElement(Row2, { T, k: "5-6 dyad worst", v: `${fmt2(r.dyadTr.worst, 1)}\xB0` }), React.createElement("div", { style: { fontSize: 10.5, color: r.tr && r.tr.worst < 40 || r.dyadTr.worst < 40 ? T.red : T.textMuted, marginTop: 4, lineHeight: 1.4 } }, r.tr && r.tr.worst < 40 || r.dyadTr.worst < 40 ? "At least one stage falls outside the recommended 40\xB0\u2013140\xB0 band. Poor force transmission near that posture." : "Both stages stay within 40\xB0\u2013140\xB0: acceptable transmission throughout.")), React.createElement("div", { style: { ...S.hint, marginTop: 14 } }, "This is a best-fit solution, not an exact one. The four-bar, fitted arc, and 5-6 dyad are all searched for the best output hold. The search is seeded deterministically, so the same beta, scale, and seed always return the same design. Re-run after changing either input."));
   }
   function ErrorSparkline({ samples, T }) {
     const ref = useRef(null);
@@ -19610,7 +20068,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   // ============================================================================
   //  SYNTHESIZER
   // ============================================================================
-  function Synthesizer({ dark, setDark, onUse = null, onClose = null, backName = "Analyzer", incoming = null }) {
+  function Synthesizer({ dark, setDark, onUse = null, onClose = null, backName = "Analyzer", incoming = null, active = true }) {
     const T = dark ? DARK : LIGHT;
     const [mode, setMode] = useState("guidance");
     const [showLinkNumbers, setShowLinkNumbers] = useState(mode === "dwell");
@@ -19788,7 +20246,6 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const xformRef = useRef(null);
     const canvasSizeRef = useRef(null);
     const rafRef = useRef(null);
-    const lastT = useRef(null);
     const fileRef = useRef(null);
     const dirRef = useRef(1);
     const segRef = useRef(null);
@@ -20123,7 +20580,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         const r = dwellResult.result;
         const sol0 = solveFourbar(r.O2, r.O4, r.a, r.b, r.c, thetaVal, r.circuit);
         const idx = (Math.round(wrap(thetaVal) / TAU4 * 720) % 720 + 720) % 720;
-        const D0 = r.dyadTrace[idx];
+        const hint = r.dyadTrace[idx] || r.dyadTrace[(idx + 1) % 720] || r.dyadTrace[(idx + 719) % 720];
+        const P0 = couplerPointOf(sol0, r.kappa);
+        const plus = P0 && hint ? intersectTwoCircles(P0, r.R, r.O6, r.L6, 1) : null;
+        const minus = P0 && hint ? intersectTwoCircles(P0, r.R, r.O6, r.L6, -1) : null;
+        const D0 = !plus ? minus : !minus ? plus : vdist(plus, hint) <= vdist(minus, hint) ? plus : minus;
         const ang = rad(dwellAngle);
         return {
           dwell: true,
@@ -20196,38 +20657,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       const ok = mode === "guidance" ? guidanceMech ? guidanceMech.ok : guidanceResult.ok : mode === "path" ? pathActive.ok : mode === "function" ? functionResult.ok : mode === "dwell" ? !!(dwellResult && dwellResult.result.ok) : mode === "slider" ? qrGeneric ? !!(qrMech && qrMech.ok) : sliderResult.ok : false;
       if (!ok) return null;
       const N = 360;
-      const valid = new Array(N + 1);
-      for (let i = 0; i <= N; i++) {
-        const t = i / N * TAU4;
-        if (mode === "guidance" && guidanceMech) {
-          valid[i] = !!guidanceMech.poseAt(t);
-        } else if (mode === "guidance") {
-          const r = guidanceResult;
-          const baseAng = Math.atan2(r.Ws[0].y - r.O2.y, r.Ws[0].x - r.O2.x);
-          valid[i] = !!solveFourbar(r.O2, r.O4, r.a, r.b, r.c, baseAng + t, circuit);
-        } else if (mode === "path") {
-          const r = pathActive;
-          valid[i] = !!solveFourbar(r.O2, r.O4, r.a, r.b, r.c, r.baseAng + t, r.circuit);
-        } else if (mode === "function") {
-          const r = functionResult;
-          valid[i] = !!solveFourbar(r.O2, r.O4, r.a, r.b, r.c, r.baseAng + t, r.circuit);
-        } else if (mode === "dwell") {
-          const r = dwellResult.result;
-          const sol = solveFourbar(r.O2, r.O4, r.a, r.b, r.c, t, r.circuit);
-          const dIdx = Math.round(i / N * 720) % 720;
-          valid[i] = !!sol && !!r.dyadTrace[dIdx];
-        } else if (mode === "slider" && qrGeneric) {
-          valid[i] = !!qrMech.poseAt(t);
-        } else if (mode === "slider") {
-          const r = sliderResult;
-          valid[i] = !!solveSliderCrank(r.O2, r.r2, r.r3, t, r.lineY, r.config);
-        } else {
-          return null;
-        }
-      }
+      const isValid = (t) => !!synthTogglePose(computeAnimConfig(t));
+      const valid = Array.from({ length: N + 1 }, (_, i) => isValid(i / N * TAU4));
       if (valid.every(Boolean)) return { full: true };
-      return { full: false, valid, N };
-    }, [mode, guidanceResult, pathActive, functionResult, sliderResult, dwellResult, circuit, fgT2a, guidanceMech, qrGeneric, qrMech]);
+      return { full: false, valid, N, segments: reachableSegments(valid, isValid) };
+    }, [mode, guidanceResult, pathActive, functionResult, sliderResult, dwellResult, guidanceMech, qrGeneric, qrMech, computeAnimConfig]);
     const theta2TrackBg = useMemo(() => {
       if (!theta2Range) return void 0;
       if (theta2Range.full) return T.trackOk;
@@ -20248,26 +20682,42 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       stops.push(`${prev ? okCol : deadCol} 100%`);
       return `linear-gradient(to right, ${stops.join(", ")})`;
     }, [theta2Range, dark]);
-    const theta2Segments = useMemo(() => {
-      if (!theta2Range || theta2Range.full) return null;
-      const { valid, N } = theta2Range;
-      const segs = [];
-      let start = null;
-      for (let i = 0; i <= N; i++) {
-        if (valid[i] && start === null) start = i;
-        if (!valid[i] && start !== null) {
-          segs.push([start, i - 1]);
-          start = null;
+    const theta2Segments = theta2Range?.full ? null : theta2Range?.segments || null;
+    const toggleCache = useRef(null);
+    const goToToggle = (direction) => {
+      setPlaying(false);
+      if (!theta2Range) return;
+      let events = toggleCache.current?.range === theta2Range ? toggleCache.current.events : null;
+      if (!events) {
+        const poseAt = (t) => synthTogglePose(computeAnimConfig(wrap(t)));
+        const ranges = theta2Range.full ? [{ min: 0, max: TAU4 }] : theta2Segments || [];
+        events = [];
+        for (const range of ranges) {
+          const samples = Array.from({ length: 361 }, (_, i) => {
+            const value = range.min + (range.max - range.min) * i / 360;
+            return { value, pose: poseAt(value) };
+          });
+          const config = samples.find((s) => s.pose);
+          const outputs = synthToggleOutputs(config ? computeAnimConfig(wrap(config.value)) : null, sliderResult.axisAngle);
+          events.push(...outputToggles(samples, outputs, poseAt, theta2Range.full ? TAU4 : null));
+          if (!theta2Range.full) {
+            for (const value of [range.min, range.max]) {
+              const pose = poseAt(value);
+              if (pose) events.push({ value, pose, label: inputLimitLabel(synthInputLimit(computeAnimConfig(wrap(value)), pose, sliderResult.axisAngle)) });
+            }
+          }
         }
+        events = mergeToggles(events.map((e) => ({ ...e, value: wrap(e.value) })), TAU4);
+        toggleCache.current = { range: theta2Range, events };
       }
-      if (start !== null) segs.push([start, N]);
-      if (segs.length > 1 && segs[0][0] === 0 && segs[segs.length - 1][1] === N) {
-        const first = segs.shift(), last = segs.pop();
-        segs.push([last[0], first[1] + N]);
+      const event = adjacentToggle(events, theta2, direction, TAU4);
+      if (!event) {
+        flash("No input limit or stationary position found for this assembly.", 3e3);
+        return;
       }
-      if (!segs.length) return null;
-      return segs.map(([a, b]) => ({ min: a / N * TAU4, max: b / N * TAU4 }));
-    }, [theta2Range]);
+      setTheta2(event.value);
+      flash(`${event.label} \xB7 \u03B8\u2082 = ${deg2(event.value).toFixed(4)}\xB0`, 4e3);
+    };
     const computeXform = useCallback((W, H) => {
       let pts = [];
       if (mode === "guidance") {
@@ -20388,9 +20838,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       return { x: (sx - xf.ox - view.panX) / eff, y: -(sy - xf.oy - view.panY) / eff };
     }, [view]);
     useEffect(() => {
-      if (!playing) {
+      if (!playing || !active) {
         cancelAnimationFrame(rafRef.current);
-        lastT.current = null;
         return;
       }
       if (theta2Segments) {
@@ -20401,31 +20850,26 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         segRef.current = null;
         posRef.current = theta2;
       }
+      const clock = frameClock();
       const tick = (t) => {
-        if (lastT.current == null) lastT.current = t;
-        const dt = (t - lastT.current) / 1e3;
-        lastT.current = t;
-        const step = dt * speed * 1.2;
+        const step = clock.dt(t) * speed * 1.2;
         const seg = segRef.current;
         if (!seg) {
           posRef.current = wrap(posRef.current + step);
         } else {
-          let next = posRef.current + dirRef.current * step;
-          if (next >= seg.max) {
-            next = seg.max;
-            dirRef.current = -1;
-          } else if (next <= seg.min) {
-            next = seg.min;
-            dirRef.current = 1;
-          }
+          const { next, reversed } = pingPong(posRef.current, dirRef.current * step, seg.min, seg.max);
+          if (reversed) dirRef.current = -dirRef.current;
           posRef.current = next;
         }
         setTheta2(wrap(posRef.current));
         rafRef.current = requestAnimationFrame(tick);
       };
       rafRef.current = requestAnimationFrame(tick);
-      return () => cancelAnimationFrame(rafRef.current);
-    }, [playing, speed, theta2Segments]);
+      return () => {
+        cancelAnimationFrame(rafRef.current);
+        clock.stop();
+      };
+    }, [playing, active, speed, theta2Segments]);
     useEffect(() => {
       const c = canvasRef.current;
       if (!c) return;
@@ -20968,12 +21412,12 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         ctx.stroke();
       }
       ctx.setLineDash([]);
-      const active = hover && hover.kind === "P";
+      const active2 = hover && hover.kind === "P";
       ctx.fillStyle = T.curveCol;
       ctx.strokeStyle = T.canvasBg;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(SX(P3.x), SY(P3.y), active ? 7 : 5.5, 0, TAU4);
+      ctx.arc(SX(P3.x), SY(P3.y), active2 ? 7 : 5.5, 0, TAU4);
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle = T.jointLabel;
@@ -21128,9 +21572,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       if (n2 === 4 && r.curve) drawBurmester(ctx, SX, SY, r.curve, postures, ["W", "Z"]);
       for (let i = 0; i < n2; i++) {
         const { A, B } = couplerPts[i];
-        const active = hover && hover.idx === i;
-        ctx.strokeStyle = active ? T.posActive : T.posCol;
-        ctx.lineWidth = active ? 3.5 : 2.5;
+        const active2 = hover && hover.idx === i;
+        ctx.strokeStyle = active2 ? T.posActive : T.posCol;
+        ctx.lineWidth = active2 ? 3.5 : 2.5;
         ctx.beginPath();
         ctx.moveTo(SX(A.x), SY(A.y));
         ctx.lineTo(SX(B.x), SY(B.y));
@@ -22565,7 +23009,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       return () => window.removeEventListener("keydown", onKey);
     }, [onClose, showMenu, showHelp, showAbout, suggestRotate]);
     useEffect(() => {
-      if (!pathDraft) return;
+      if (!pathDraft || !active) return;
       const onKey = (e) => {
         if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
         const t = e.target;
@@ -22577,7 +23021,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       };
       window.addEventListener("keydown", onKey);
       return () => window.removeEventListener("keydown", onKey);
-    }, [pathDraft, pathDraftClosed]);
+    }, [pathDraft, pathDraftClosed, active]);
     const downloadGif = useCallback(async () => {
       const ok = mode === "guidance" ? guidanceMech ? guidanceMech.ok : guidanceResult.ok : mode === "path" ? pathActive.ok : mode === "function" ? functionResult.ok : mode === "dwell" ? !!(dwellResult && dwellResult.result.ok) : mode === "slider" ? qrGeneric ? !!(qrMech && qrMech.ok) : sliderResult.ok : false;
       if (!ok || gifBusy) return;
@@ -22759,7 +23203,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       setOptProgress(0);
     };
     useEffect(() => {
-      if (!optBusy) return;
+      if (!optBusy || !active) return;
       let raf = null;
       const tick = () => {
         const opt = optRef.current;
@@ -22811,7 +23255,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       return () => {
         if (raf) cancelAnimationFrame(raf);
       };
-    }, [optBusy, pathN]);
+    }, [optBusy, pathN, active]);
     const lastIncomingRef = useRef(0);
     const [origin, setOrigin] = useState(null);
     useEffect(() => {
@@ -22924,13 +23368,13 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       if (!activeResult.ok) setPlaying(false);
     }, [activeResult.ok]);
     const secHead = (label, color) => React.createElement(SectionHeader, { label, color });
-    const underlineHeader = (active, color) => ({
+    const underlineHeader = (active2, color) => ({
       fontSize: 10,
       letterSpacing: 1.2,
       textTransform: "uppercase",
       fontWeight: 700,
-      color: active ? color : T.textMuted,
-      borderBottom: `2px solid ${active ? color : T.border2}`,
+      color: active2 ? color : T.textMuted,
+      borderBottom: `2px solid ${active2 ? color : T.border2}`,
       padding: "0 2px 7px 2px",
       marginBottom: 8
     });
@@ -23526,7 +23970,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       },
       showCognates ? "Cognates shown \u2713" : "Show cognates"
     ), showCognates && React.createElement(React.Fragment, null, React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, margin: "8px 0", lineHeight: 1.4 } }, "Two more four-bars, each tracing the exact same path through ", React.createElement("b", null, "X"), " as the linkage above. Cognate II (orange) shares ground pivot O\u2082; Cognate III (magenta) shares O\u2084. Both share a new third ground pivot, O\u2086."), React.createElement("div", { style: { ...S.secLabel, marginTop: 10 } }, "Export / analyze"), React.createElement("div", { style: { display: "flex", flexWrap: "nowrap", gap: 4 } }, [["original", "Original"], ["cog2", "Cognate II"], ["cog3", "Cognate III"]].map(([key, label]) => {
-      const active = exportCognate === key;
+      const active2 = exportCognate === key;
       return React.createElement(
         "button",
         {
@@ -23541,9 +23985,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
-            background: active ? T.accent + "1c" : "transparent",
-            border: `1px solid ${active ? T.accent : T.border2}`,
-            color: active ? T.accent : T.text
+            background: active2 ? T.accent + "1c" : "transparent",
+            border: `1px solid ${active2 ? T.accent : T.border2}`,
+            color: active2 ? T.accent : T.text
           }
         },
         label
@@ -23738,10 +24182,10 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         chart: { title: dwellCanvasChart.title, unit: "normalized", series: dwellCanvasChart.series },
         headerNote: camChartHover != null && dwellCanvasChart.xs[camChartHover] != null ? `\xB7 \u03B8 = ${fmt2(dwellCanvasChart.xs[camChartHover], 1)}\xB0` + dwellCanvasChart.series.map((s) => ` \xB7 ${s.name} ${fmt2(s.values[camChartHover], 3)}`).join("") + (dwellCanvasChart.series.length === 2 ? ` \xB7 \u0394 ${fmt2(100 * Math.abs(dwellCanvasChart.series[1].values[camChartHover] - dwellCanvasChart.series[0].values[camChartHover]), 1)}% of swing` : "") : null
       }
-    )))), React.createElement("div", { style: S.controls }, React.createElement("button", { className: "btn", title: playing ? "Pause" : "Play", onClick: () => setPlaying((p) => {
+    )))), React.createElement("div", { style: { ...S.controls, flexWrap: "wrap" } }, React.createElement("button", { className: "btn", style: { padding: "7px 9px" }, title: playing ? "Pause" : "Play", onClick: () => setPlaying((p) => {
       if (!p) dirRef.current = 1;
       return !p;
-    }), disabled: !activeResult.ok }, playing ? React.createElement(PauseIcon2, null) : React.createElement(PlayIcon2, null)), React.createElement("span", { style: S.tick }, "\u03B8\u2082"), React.createElement(
+    }), disabled: !activeResult.ok }, playing ? React.createElement(PauseIcon2, null) : React.createElement(PlayIcon2, null)), React.createElement("div", { style: { flex: "1 1 180px", display: "flex", alignItems: "center", gap: 10, minWidth: 0 } }, React.createElement("span", { style: S.tick }, "\u03B8\u2082"), React.createElement(
       "input",
       {
         type: "range",
@@ -23753,7 +24197,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           setTheta2(parseFloat(e.target.value));
           setPlaying(false);
         },
-        style: theta2TrackBg ? { flex: 1, background: theta2TrackBg } : { flex: 1 },
+        style: { flex: 1, minWidth: 0, ...theta2TrackBg ? { background: theta2TrackBg } : {} },
         disabled: !activeResult.ok
       }
     ), React.createElement(
@@ -23773,7 +24217,29 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         style: { ...S.val, width: 70, textAlign: "right" },
         disabled: !activeResult.ok
       }
-    ), React.createElement("span", { style: S.tick }, "\xB0"), React.createElement("div", { style: S.spd }, React.createElement("span", { style: S.tick }, "speed"), React.createElement(
+    ), React.createElement("span", { style: S.tick }, "\xB0")), React.createElement("div", { role: "group", "aria-label": "Input limits and stationary positions", style: { display: "flex", gap: 2, flexShrink: 0 } }, React.createElement(
+      "button",
+      {
+        className: "btn",
+        style: { padding: "7px 9px" },
+        disabled: !theta2Range,
+        title: "Previous input limit or stationary position (pauses playback)",
+        "aria-label": "Previous input limit or stationary position",
+        onClick: () => goToToggle(-1)
+      },
+      React.createElement(LimitPrevIcon, null)
+    ), React.createElement(
+      "button",
+      {
+        className: "btn",
+        style: { padding: "7px 9px" },
+        disabled: !theta2Range,
+        title: "Next input limit or stationary position (pauses playback)",
+        "aria-label": "Next input limit or stationary position",
+        onClick: () => goToToggle(1)
+      },
+      React.createElement(LimitNextIcon, null)
+    )), React.createElement("div", { style: S.spd }, React.createElement("span", { style: S.tick }, "speed"), React.createElement(
       "input",
       {
         type: "range",
@@ -23977,6 +24443,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       {
         dark,
         setDark,
+        active: view === "analyze",
         onSynthesize: () => navigate("synthesize"),
         onCam: () => navigate("cam"),
         onSendPath: (doc2, source) => handoff(doc2, source, "synthesize"),
@@ -23991,6 +24458,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       {
         dark,
         setDark,
+        active: view === "synthesize",
         onUse: handoff,
         onClose: backFor("synthesize"),
         backName,
@@ -24001,6 +24469,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       {
         dark,
         setDark,
+        active: view === "cam",
         onClose: backFor("cam"),
         backName,
         incoming: incoming && incoming.target === "cam" ? incoming : null,
