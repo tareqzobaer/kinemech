@@ -16,24 +16,6 @@ All three tools use the same mechanism representation. A synthesized mechanism c
 
 ![KineMech example](jensen.gif)
 
-## What's new in version 3
-
-- Motion generation with specified fixed pivots, prescribed link rotations, rocker output, and a driver dyad for non-Grashof results.
-- Path generation that hits a prescribed crank angle at each point exactly, and target curves drawn and edited on the canvas.
-- Function generation with four or five precision points.
-- Quick return with a four-bar crank-rocker, a drag-link six-bar, and a Whitworth six-bar, alongside the slider-crank.
-- Double-dwell six-bar synthesis.
-- Circuit, branch, and order defects reported for every precision position.
-- A canvas switch that prints coordinates and angles next to their labels.
-- Canvas and panels linked both ways: hovering a result or settings card highlights its link or joint, and clicking a link or joint highlights its cards.
-- Clearer handoffs between the tools: each button names its destination, and the receiving tool shows where the design came from with a named way back.
-- Slotted links drawn as a slotted bar with its sliding block, in both the analyzer and the synthesizer.
-- A Jansen walking linkage preset: two legs driven by one crank, opening with a foot's path traced.
-- Crank balancing that keeps the page responsive, shows its progress, and can be stopped early.
-- Status messages shown over the canvas on every step of the analyzer.
-- Touch and click fixes: a canceled touch no longer places or selects anything, Reset also clears a half-placed cam or pairing, and linked cards show a pointer cursor.
-- If the browser blocks local storage, the tools keep working and say that autosave is off, instead of locking the tab.
-
 ## Analysis
 
 The analyzer supports general planar mechanisms rather than being limited to standard four-bar and slider-crank equations.
