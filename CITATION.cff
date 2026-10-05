@@ -5,7 +5,7 @@ authors:
     given-names: "Tareq"
     orcid: "https://orcid.org/0000-0002-3907-7203"
 title: "KineMech: Planar mechanism analysis and synthesis"
-version: "3.5.0"
+version: "3.6.0"
 doi: "10.5281/zenodo.21843046"
-date-released: 2026-10-05
+date-released: 2026-10-06
 url: "https://github.com/tareqzobaer/kinemech"

@@ -787,7 +787,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   function sampleProgram(prog, n2 = 360) {
     const out = [];
     for (let i = 0; i < n2; i++) {
-      const theta = i / n2 * (prog.total || 360);
+      const theta = i * (prog.total || 360) / n2;
       out.push({ theta, ...evalProgram(prog, theta) });
     }
     return out;
@@ -1409,7 +1409,22 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       if (fitsGeometry(prog, scale(mid))) hi = mid;
       else lo = mid;
     }
-    return scale(hi * SUGGEST_MARGIN);
+    return roundSized(prog, scale(hi * SUGGEST_MARGIN), scale(1));
+  }
+  function roundSized(prog, g, base) {
+    const keys = Object.keys(g).filter((k) => typeof g[k] === "number" && g[k] !== base[k]);
+    for (const sig of [3, 4, 6]) {
+      const t = { ...g };
+      for (const k of keys) t[k] = ceilSig(g[k], sig);
+      if (fitsGeometry(prog, t)) return t;
+    }
+    return g;
+  }
+  function ceilSig(x, sig) {
+    if (!(x > 0) || !isFinite(x)) return x;
+    const e = sig - 1 - Math.floor(Math.log10(x));
+    const f = 10 ** Math.abs(e);
+    return e >= 0 ? Math.ceil(x * f - 1e-9) / f : Math.ceil(x / f - 1e-9) * f;
   }
   var PIVOT_RATIO_GRID = [
     [2, 1],
@@ -1433,7 +1448,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     if (C.key === "flat") {
       const probe = generateProfile(prog, { ...geom, r0: 1 }, 360);
       if (!probe || !(probe.minR0Convex > 0)) return null;
-      const g = { ...geom, r0: probe.minR0Convex * SUGGEST_MARGIN };
+      const g = roundSized(prog, { ...geom, r0: probe.minR0Convex * SUGGEST_MARGIN }, geom);
       return fitsGeometry(prog, g) ? g : null;
     }
     const baseR0 = geom.r0 > 0 ? geom.r0 : 25;
@@ -4377,7 +4392,16 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         icon: React.createElement(CamLaunchIcon, null),
         blurb: "Lay out a rise-dwell-fall program and pick a follower. Get the cam profile back, with the graphical construction drawn alongside it."
       }
-    )), React.createElement("div", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 2 } }, React.createElement("button", { className: "btn", style: { fontSize: 11.5, padding: "6px 11px" }, onClick: onLoad }, "Load a .kinemech\u2026"), React.createElement("span", { style: { fontSize: 11, color: T.textMuted } }, "or"), React.createElement(
+    )), React.createElement("div", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 2 } }, React.createElement(
+      "button",
+      {
+        className: "btn",
+        style: { fontSize: 11.5, padding: "6px 11px" },
+        onClick: onLoad,
+        title: onCam ? "Open a .kinemech mechanism here, or a .kinemotion cam program in the profiler" : void 0
+      },
+      onCam ? "Load a .kinemech or .kinemotion\u2026" : "Load a .kinemech\u2026"
+    ), React.createElement("span", { style: { fontSize: 11, color: T.textMuted } }, "or"), React.createElement(
       "select",
       {
         value: "",
@@ -8404,7 +8428,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     if (extra.some((id) => moving.some((lk) => lk !== coupler && lk.joints.includes(id)))) return null;
     return { O2: grounded[0].id, A, B, O4: grounded[1].id, side2, coupler, side4 };
   };
-  function App({ dark, setDark, onSynthesize = null, onCam = null, onSendPath = null, onSendCamProgram = null, onDesignCam = null, onClose = null, backName = "Synthesizer", incoming = null, active = true }) {
+  function App({ dark, setDark, onSynthesize = null, onCam = null, onSendPath = null, onSendCamProgram = null, onDesignCam = null, onOpenCamFile = null, onClose = null, backName = "Synthesizer", incoming = null, active = true }) {
     const narrow = useMedia("(max-width: 900px)");
     const compact = useMedia("(max-width: 640px)");
     const portrait = useMedia("(orientation: portrait)");
@@ -13113,6 +13137,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           flash("Could not read that file.", 5e3, "problem");
           return;
         }
+        if (data?.kind === "motion") {
+          if (onOpenCamFile) onOpenCamFile(data, f.name);
+          else flash("That is a .kinemotion cam program. Open it in the cam tool.", 5e3, "problem");
+          return;
+        }
         applySnapshot(data);
         setRecovery(null);
         setDirty(false);
@@ -13433,7 +13462,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       {
         ref: kinemechFileRef,
         type: "file",
-        accept: ".kinemech,application/json",
+        accept: onOpenCamFile ? ".kinemech,.kinemotion,application/json" : ".kinemech,application/json",
         onChange: (e) => {
           loadMechanism(e);
           setShowFileMenu(false);
@@ -14695,6 +14724,76 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     } catch {
     }
   };
+
+  // ============================================================================
+  //  CAM DESIGN BLOCK — what a .kinemotion export carries besides the motion
+  // ============================================================================
+  var CAM_DESIGN_KIND = "camdesign";
+  var CAM_DESIGN_VERSION = 1;
+  var fin = (v) => typeof v === "number" && isFinite(v);
+  function writeCamDesign({ progSource, segments, geom, omega, unitLabel, program }) {
+    const imported = progSource === "imported" && program?.kind === "fourier";
+    return {
+      kind: CAM_DESIGN_KIND,
+      version: CAM_DESIGN_VERSION,
+      progSource: imported ? "imported" : "segments",
+      segments: (segments || []).map(({ kind, law, beta, lift }) => ({ kind, law, beta, lift })),
+      geom: { ...geom },
+      omega,
+      unitLabel,
+
+      ...imported ? { program: { ...program, omega: 0 } } : {}
+    };
+  }
+  function readCamDesign(block) {
+    try {
+      if (!block || typeof block !== "object" || block.kind !== CAM_DESIGN_KIND) return null;
+      const segments = Array.isArray(block.segments) ? block.segments.filter((s) => s && typeof s === "object").map((s) => ({
+        kind: SEGMENT_KINDS.includes(s.kind) ? s.kind : "dwell",
+        law: LAWS[s.law] ? s.law : "harmonic",
+        beta: fin(s.beta) ? s.beta : 0,
+        lift: fin(s.lift) ? s.lift : 0
+      })) : [];
+      const geom = {};
+      if (block.geom && typeof block.geom === "object") {
+        for (const [k, v] of Object.entries(block.geom)) {
+          if (fin(v) || typeof v === "string" || typeof v === "boolean") geom[k] = v;
+        }
+      }
+      const program = block.progSource === "imported" ? readFourierProgram(block.program) : null;
+      if (block.progSource === "imported" && !program) return null;
+      return {
+        progSource: program ? "imported" : "segments",
+        segments,
+        geom,
+        program,
+        omega: fin(block.omega) ? block.omega : null,
+        unitLabel: typeof block.unitLabel === "string" && block.unitLabel ? block.unitLabel : null
+      };
+    } catch {
+      return null;
+    }
+  }
+  function readFourierProgram(p) {
+    if (!p || typeof p !== "object" || p.kind !== "fourier") return null;
+    const h = p.harmonics, c = p.coeffs;
+    if (!Number.isInteger(h) || h < 1) return null;
+    if (!c || !fin(c.a0) || !Array.isArray(c.a) || !Array.isArray(c.b)) return null;
+    if (c.a.length < h || c.b.length < h || !c.a.slice(0, h).every(fin) || !c.b.slice(0, h).every(fin)) return null;
+    if (!MOTION_OUTPUTS.includes(p.output)) return null;
+    return { ...p, total: 360, closed: true, omega: 0 };
+  }
+  function fourierSourceDoc(program) {
+    const raw = program.raw;
+    const rawDoc = Array.isArray(raw?.theta) && Array.isArray(raw?.s) && raw.theta.length === raw.s.length ? readMotionDoc(makeMotionDoc(raw.theta.map((theta, i) => ({ theta, s: raw.s[i] })), {
+      closed: true,
+      output: program.output,
+      units: program.units,
+      source: "cam",
+      label: program.label
+    })) : null;
+    return rawDoc || programToMotionDoc(program, 360);
+  }
 
   // ============================================================================
   //  CAM CANVAS — the graphical construction
@@ -16184,6 +16283,47 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       }, 400);
       return () => clearTimeout(id);
     }, [segments, geom, omega, unitLabel, stations, layers, progSource, importedRaw, importedProgram, harmonics, recovery, linkage]);
+    const restoreDesign = useCallback((d, name) => {
+      const lockedOutput = linkage && outputFor({ mounting: linkage.locked.mounting });
+      if (d.program && linkage && d.program.output !== lockedOutput) {
+        flash(`That motion is ${d.program.output}. This linkage requires ${lockedOutput} motion.`, 5e3, "problem");
+        return;
+      }
+      setSegments(d.segments);
+      if (d.program) {
+        setImportedRaw(fourierSourceDoc(d.program));
+        setImportedProgram(d.program);
+        setHarmonics(d.program.harmonics);
+      }
+      setProgSource(d.progSource);
+      setGeom(linkage ? { ...DEFAULT_GEOM, ...d.geom, ...linkage.locked, family: "plate" } : { ...DEFAULT_GEOM, ...d.geom });
+      if (d.omega != null) setOmega(d.omega);
+      if (!linkage && d.unitLabel) setUnitLabel(d.unitLabel);
+      setTheta(0);
+      setPlaying(false);
+      flash(`Opened ${name}`, 3e3);
+    }, [linkage, flash]);
+    const openMotionJson = useCallback((json, name, onDone) => {
+      const done = () => onDone && onDone();
+      const doc2 = readMotionDoc(json);
+      if (!doc2) {
+        flash(`Could not read ${name || "that"} as a .kinemotion document.`, 4e3, "problem");
+        done();
+        return;
+      }
+      const design = readCamDesign(json.cam);
+      if (design) {
+        restoreDesign(design, name);
+        done();
+        return;
+      }
+      if (!doc2.closed) {
+        flash("That program is an open, partial sweep. The importer needs one full, periodic cycle to fit against.", 5e3, "problem");
+        done();
+        return;
+      }
+      landImportedDoc(doc2, `Imported ${doc2.samples.length} samples`, onDone);
+    }, [flash, landImportedDoc, restoreDesign]);
     const lastIncomingRef = useRef(0);
     const [origin, setOrigin] = useState(null);
     useEffect(() => {
@@ -16200,15 +16340,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           setProgSource("segments");
           setSegments(d.program.segments);
         } else if (d.program?.kind === "fourier") {
-          const raw = d.program.raw;
-          const rawDoc = Array.isArray(raw?.theta) && Array.isArray(raw?.s) && raw.theta.length === raw.s.length ? readMotionDoc(makeMotionDoc(raw.theta.map((theta2, i) => ({ theta: theta2, s: raw.s[i] })), {
-            closed: true,
-            output: d.program.output,
-            units: d.program.units,
-            source: "cam",
-            label: d.program.label
-          })) : null;
-          setImportedRaw(rawDoc || programToMotionDoc(d.program, 360));
+          setImportedRaw(fourierSourceDoc(d.program));
           setImportedProgram(d.program);
           setHarmonics(d.program.harmonics);
           setProgSource("imported");
@@ -16223,6 +16355,12 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         setTheta(0);
         setPlaying(false);
         done();
+        return;
+      }
+      if (incoming.file) {
+        setTheta(0);
+        setPlaying(false);
+        openMotionJson(incoming.data, incoming.file, done);
         return;
       }
       const doc2 = readMotionDoc(incoming.data);
@@ -16379,8 +16517,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       });
     }, []);
     const exportMotion = useCallback(() => {
-      downloadBlob(new Blob([writeMotionDoc(programToMotionDoc(prog, 360))], { type: "application/json" }), "cam.kinemotion");
-    }, [prog]);
+      const doc2 = { ...programToMotionDoc(prog, 360), cam: writeCamDesign({ progSource, segments, geom, omega, unitLabel, program: prog }) };
+      downloadBlob(new Blob([writeMotionDoc(doc2)], { type: "application/json" }), "cam.kinemotion");
+    }, [prog, progSource, segments, geom, omega, unitLabel]);
     const exportMotionCsv = useCallback(() => {
       downloadBlob(new Blob([motionToCsv(programToMotionDoc(prog, 360))], { type: "text/csv" }), "cam-motion.csv");
     }, [prog]);
@@ -16388,19 +16527,16 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       if (!file) return;
       const rd = new FileReader();
       rd.onload = () => {
-        const doc2 = readMotionDoc(String(rd.result || ""));
-        if (!doc2) {
-          flash("Could not read that as a .kinemotion document.", 4e3, "problem");
-          return;
+        let json = null;
+        try {
+          json = JSON.parse(String(rd.result || ""));
+        } catch {
+          json = null;
         }
-        if (!doc2.closed) {
-          flash("That program is an open, partial sweep. The importer needs one full, periodic cycle to fit against.", 5e3, "problem");
-          return;
-        }
-        landImportedDoc(doc2, `Imported ${doc2.samples.length} samples`);
+        openMotionJson(json, file.name);
       };
       rd.readAsText(file);
-    }, [flash, landImportedDoc]);
+    }, [openMotionJson]);
     const importCsvFile = useCallback((file) => {
       if (!file) return;
       const rd = new FileReader();
@@ -16851,18 +16987,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       border: `1px solid ${T.red}`,
       color: T.red,
       fontWeight: 600
-    } }, blockingIssue.message, React.createElement("span", { style: { display: "block", fontSize: 10, color: T.textMuted, fontWeight: 400, marginTop: 3 } }, "See Findings for detail.")), React.createElement(CopyrightTag, { T, style: { left: 10, bottom: 40 } }), React.createElement("div", { style: {
-      position: "absolute",
-      left: 10,
-      bottom: 10,
-      background: T.canvasTagBg,
-      border: `1px solid ${T.border2}`,
-      borderRadius: 4,
-      padding: "4px 8px",
-      fontSize: 10.5,
-      color: T.canvasTagText,
-      fontFamily: "ui-monospace,monospace"
-    } }, "\u03B8 ", theta.toFixed(0), "\xB0", result?.ok && React.createElement(React.Fragment, null, " \xB7 s ", fmtN(evalProgram(prog, theta).s), " ", prog.output === "rotation" ? "\xB0" : unitLabel)), !result?.ok && React.createElement("div", { style: {
+    } }, blockingIssue.message, React.createElement("span", { style: { display: "block", fontSize: 10, color: T.textMuted, fontWeight: 400, marginTop: 3 } }, "See Findings for detail.")), React.createElement(CopyrightTag, { T, style: { left: 10 } }), !result?.ok && React.createElement("div", { style: {
       position: "absolute",
       inset: 0,
       display: "flex",
@@ -16896,7 +17021,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     ))) : (
 
       React.createElement("div", { style: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" } }, React.createElement("div", { style: { ...S.hint, maxWidth: 320, fontSize: 12 } }, issues.find((i) => i.severity === "error")?.message || "This follower and program cannot be drawn together."))
-    ))), React.createElement("div", { style: local.rpanel }, React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: rightOpen ? "space-between" : "center", marginBottom: rightOpen ? 4 : 6 } }, rightOpen && React.createElement("div", { style: S.secLabel }, "Results"), React.createElement("button", { className: "btn tap", "aria-expanded": rightOpen, title: rightOpen ? "Collapse panel" : "Expand panel", onClick: toggleRight, style: { padding: "3px 5px", lineHeight: 0, flexShrink: 0 } }, rightOpen ? React.createElement(PanelRightCloseIcon, null) : React.createElement(PanelRightOpenIcon, null))), React.createElement("div", { style: { display: rightOpen ? "contents" : "none" } }, React.createElement(CamResults, { prog, geom, result, issues, unit: unitLabel })))), React.createElement("div", { className: "tap-row", style: { ...S.controls, ...narrow ? { flexWrap: "wrap", gap: 8, padding: "8px 10px" } : null } }, React.createElement("button", { className: "btn", title: playing ? "Pause" : "Play", "aria-label": playing ? "Pause" : "Play", onClick: () => setPlaying((p) => !p) }, playing ? React.createElement(PauseIcon, null) : React.createElement(PlayIcon, null)), React.createElement("div", { style: { flex: "1 1 180px", display: "flex", alignItems: "center", gap: 10, minWidth: 0 } }, React.createElement("span", { style: S.tick }, "\u03B8"), React.createElement(
+    ))), React.createElement("div", { style: local.rpanel }, React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: rightOpen ? "space-between" : "center", marginBottom: rightOpen ? 4 : 6 } }, rightOpen && React.createElement("div", { style: S.secLabel }, "Results"), React.createElement("button", { className: "btn tap", "aria-expanded": rightOpen, title: rightOpen ? "Collapse panel" : "Expand panel", onClick: toggleRight, style: { padding: "3px 5px", lineHeight: 0, flexShrink: 0 } }, rightOpen ? React.createElement(PanelRightCloseIcon, null) : React.createElement(PanelRightOpenIcon, null))), React.createElement("div", { style: { display: rightOpen ? "contents" : "none" } }, React.createElement(CamResults, { prog, geom, result, issues, unit: unitLabel })))), React.createElement("div", { className: "tap-row", style: { ...S.controls, ...narrow ? { flexWrap: "wrap", gap: 8, padding: "8px 10px" } : null } }, React.createElement("button", { className: "btn", title: playing ? "Pause" : "Play", "aria-label": playing ? "Pause" : "Play", onClick: () => setPlaying((p) => !p) }, playing ? React.createElement(PauseIcon, null) : React.createElement(PlayIcon, null)), React.createElement("div", { style: { flex: "4 1 180px", display: "flex", alignItems: "center", gap: 10 } }, React.createElement("span", { style: S.tick }, "\u03B8"), React.createElement(
       "input",
       {
         type: "range",
@@ -16929,7 +17054,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         },
         style: { ...S.val, width: 70, textAlign: "right" }
       }
-    ), React.createElement("span", { style: S.tick }, "\xB0")), React.createElement("label", { style: S.spd }, React.createElement("span", { style: S.tick }, "speed"), React.createElement(
+    ), React.createElement("span", { style: S.tick }, "\xB0")), React.createElement("div", { style: { display: "flex", alignItems: "center", gap: narrow ? 8 : 12, ...narrow ? { flex: "1 1 auto", flexWrap: "wrap", minWidth: 0 } : { flexShrink: 0 } } }, React.createElement("div", { title: "Follower displacement s at this cam angle", style: { display: "flex", alignItems: "center", gap: 7, flexShrink: 0, marginLeft: narrow ? 0 : 6 } }, React.createElement("span", { style: S.tick }, "s"), React.createElement("span", { style: { ...S.val, minWidth: 52, fontVariantNumeric: "tabular-nums" } }, fmtN(result?.ok ? evalProgram(prog, theta).s : null)), React.createElement("span", { style: S.tick }, prog.output === "rotation" ? "\xB0" : unitLabel)), React.createElement("label", { style: { ...S.spd, ...narrow ? { flex: "1 1 140px", minWidth: 0, maxWidth: 220 } : null } }, React.createElement("span", { style: S.tick }, "speed"), React.createElement(
       "input",
       {
         type: "range",
@@ -16939,7 +17064,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         value: speed,
         "aria-valuetext": `${speed.toFixed(2)} times`,
         onChange: (e) => setSpeed(parseFloat(e.target.value)),
-        style: { width: 70 }
+        style: narrow ? { flex: 1, minWidth: 40, width: 0 } : { width: 70 }
       }
     ), React.createElement("span", { style: S.val }, speed.toFixed(2), "\xD7")), React.createElement(
       "button",
@@ -16950,7 +17075,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         title: showCharts ? "Hide the S-V-A-J charts" : "Show the S-V-A-J charts"
       },
       React.createElement(ChartIcon, null)
-    ), React.createElement("button", { className: "btn", style: { padding: "7px 9px" }, disabled: !result?.ok || gifBusy, title: "Export animated GIF", onClick: exportGif }, gifBusy ? `${Math.round(gifProgress * 100)}%` : React.createElement(GifIcon, null))), modal === "about" && React.createElement(AboutModal2, { T, onClose: () => setModal(null) }), modal === "help" && React.createElement(HelpModal2, { T, onClose: () => setModal(null) }), csvPending && React.createElement(
+    ), React.createElement("button", { className: "btn", style: { padding: "7px 9px" }, disabled: !result?.ok || gifBusy, title: "Export animated GIF", onClick: exportGif }, gifBusy ? `${Math.round(gifProgress * 100)}%` : React.createElement(GifIcon, null)))), modal === "about" && React.createElement(AboutModal2, { T, onClose: () => setModal(null) }), modal === "help" && React.createElement(HelpModal2, { T, onClose: () => setModal(null) }), csvPending && React.createElement(
       CsvImportModal,
       {
         T,
@@ -16975,7 +17100,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     return LAYER_LABELS[k];
   };
   var fmtC = (v) => v == null ? "\u2014" : !isFinite(v) ? "\u221E" : v.toFixed(3);
-  var fmtN = (v) => v == null || !isFinite(v) ? "\u2014" : Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2);
+  var fmtN = (v) => v == null || !isFinite(v) ? "\u2014" : Math.abs(v) >= 100 ? v.toFixed(0) : (Math.abs(v) < 5e-3 ? 0 : v).toFixed(2);
 
   // ============================================================================
   //  ERROR BOUNDARY
@@ -24516,7 +24641,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         style: leftPanelOpen ? { position: "absolute", top: -8, right: 8, padding: "4px 6px" } : { position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", padding: "4px 6px" }
       },
       leftPanelOpen ? React.createElement(PanelLeftCloseIcon2, null) : React.createElement(PanelLeftOpenIcon2, null)
-    )), React.createElement("div", { style: { display: leftPanelOpen ? "contents" : "none" } }, recovery && React.createElement("div", { style: { ...S.hint, marginBottom: 14, borderLeft: `3px solid ${T.accentBlue}`, display: "flex", flexDirection: "column", gap: 8 } }, React.createElement("span", null, "Unsaved design from your last session (", MODES[recovery.mode] || "design", ")."), React.createElement("div", { style: { display: "flex", gap: 6 } }, React.createElement(
+    )), React.createElement("div", { style: { display: leftPanelOpen ? "contents" : "none" } }, recovery && React.createElement("div", { style: { ...S.hint, marginBottom: 14, display: "flex", flexDirection: "column", gap: 8 } }, React.createElement("span", null, "Unsaved design from your last session (", MODES[recovery.mode] || "design", ")."), React.createElement("div", { style: { display: "flex", gap: 6 } }, React.createElement(
       "button",
       {
         className: "btn pri",
@@ -25367,6 +25492,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       goBack();
     };
     const synthesizeDwell = (payload) => handoff(payload, "Cam", "synthesize");
+    const openCamFile = (data, name) => {
+      seqRef.current += 1;
+      setIncoming({ data, file: name, seq: seqRef.current, target: "cam", from: null });
+      navigate("cam", "handoff");
+    };
     const camReadyCbRef = useRef(null);
     const sendCamProgram = (data, source, onBuilt) => {
       seqRef.current += 1;
@@ -25395,6 +25525,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         onSendPath: (doc2, source) => handoff(doc2, source, "synthesize"),
         onSendCamProgram: sendCamProgram,
         onDesignCam: designCam,
+        onOpenCamFile: openCamFile,
         onClose: backFor("analyze"),
         backName,
         incoming: incoming && incoming.target === "analyze" ? incoming : null
