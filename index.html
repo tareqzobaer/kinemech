@@ -5448,7 +5448,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   };
   var offscreenSkip = (h) => ({ contentVisibility: "auto", containIntrinsicSize: `auto ${h}px` });
   var CARD_H = { linkMotion: 75, vel: 82, acc: 202, pos: 150 };
-  var ResultsPanel = memo(({ solution, joints, links, elements = [], numbers, sliderNumbers, jointNames, driverKind, crankLink, driverJoint, driverRef, thetaRange, sRange, scaleFactor = 1, unitLabel = "u", fourbarQuality, onCheckFourbar, dynamicsNow, dynamicsCycle, onCheckDynamicsCycle, dynamicsEligible, resultsTab, setResultsTab, balanceResult, balanceBusy = false, balanceProgress = 0, onBalance, onStopBalance, onRemoveBalance, onCompareBalance, staleWarning, legend, compact = false }) => {
+  var ResultsPanel = memo(({ solution, joints, links, elements = [], numbers, sliderNumbers, jointNames, driverKind, crankLink, driverJoint, driverRef, thetaRange, sRange, scaleFactor = 1, unitLabel = "u", fourbarQuality, onCheckFourbar, dynamicsNow, dynamicsCycle, onCheckDynamicsCycle, dynamicsEligible, resultsTab, setResultsTab, balanceResult, balanceBusy = false, balanceProgress = 0, onBalance, onStopBalance, onRemoveBalance, onCompareBalance, staleWarning, legend, compact = false, gravityOn = false, setGravityOn, gravityMag = 9.81, setGravityMag }) => {
     const T = useTheme(), S = makeStyles(T), fx = useFocusLink();
     const { linkKin, recon, vel, acc } = solution;
     const su = unitLabel;
@@ -5563,9 +5563,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         const band = muBand(transmission.worst);
         return React.createElement("div", { style: { marginBottom: 10 } }, React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 4 } }, "Transmission angle \u03BC", React.createElement("span", { style: { color: band.col, fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, marginLeft: 7, font: "700 9.5px ui-monospace,monospace" } }, band.label.toUpperCase())), React.createElement("div", { style: S.specTable }, React.createElement(KinRow, { k: "min", v: `${fmt2(transmission.min, 1)}\xB0 @ \u03B8\u2082 ${fmt2(deg(transmission.atMin), 1)}\xB0`, col: band.col }), React.createElement(KinRow, { k: "max", v: `${fmt2(transmission.max, 1)}\xB0 @ \u03B8\u2082 ${fmt2(deg(transmission.atMax), 1)}\xB0`, col: band.col }), React.createElement(KinRow, { k: "worst", v: `${fmt2(transmission.worst, 1)}\xB0 from lock`, col: band.col, last: true })), React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, lineHeight: 1.45, marginTop: 4 } }, "Measured at ", jointNames?.[fourbar?.muAt] ?? "the output joint", ", between the coupler and the output link. Ideal is 90\xB0; below ~40\xB0 the linkage transmits force poorly and approaches lock-up."));
       })(), React.createElement("button", { className: "btn", style: { width: "100%" }, onClick: onCheckFourbar }, "Recompute"));
-    })()), activeTab === "dynamics" && React.createElement("div", { style: S.sectionBody }, !dynamicsEligible && (() => {
+    })()), activeTab === "dynamics" && React.createElement("div", { style: S.sectionBody }, setGravityOn && (links.some((lk) => lk.mass != null) || joints.some((j) => j.type === "slider" && j.mass != null)) && React.createElement("div", { style: { marginBottom: 6 } }, React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 } }, React.createElement("span", { style: { fontSize: 12, color: T.text, fontWeight: 600 } }, "Gravity"), React.createElement("button", { className: "btn" + (gravityOn ? " on" : ""), style: { padding: "3px 8px", fontSize: 10.5 }, onClick: () => setGravityOn((v) => !v) }, gravityOn ? "on" : "off")), gravityOn && React.createElement(Field, { label: "g (m/s\xB2, \u2212y)", v: gravityMag, set: (x) => setGravityMag(isFinite(x) ? x : 0) })), !dynamicsEligible && (() => {
       const hasLoads = links.some((lk) => (lk.loads || []).length || lk.appliedT) || joints.some((j) => j.type === "slider" && ((j.loads || []).length || j.appliedT));
-      return React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, lineHeight: 1.45 } }, "Joint reactions and the input ", driverKind === "rotation" ? "torque needed to sustain this pose's \u03C9\u2082/\u03B1\u2082" : "force needed to sustain this pose's v\u2082/a\u2082", hasLoads ? " against the applied loads" : "", ", from a frictionless free-body analysis, plus the peak of each over a full ", driverKind === "rotation" ? "crank revolution" : "slider stroke", ". Add a load, torque, spring, or damper, or turn on gravity, to unlock this. Mass and inertia (Elements step) are optional beyond that: an unset link defaults to massless.");
+      return React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, lineHeight: 1.45 } }, "Joint reactions and the input ", driverKind === "rotation" ? "torque needed to sustain this pose's \u03C9\u2082/\u03B1\u2082" : "force needed to sustain this pose's v\u2082/a\u2082", hasLoads ? " against the applied loads" : "", ", from a frictionless free-body analysis, plus the peak of each over a full ", driverKind === "rotation" ? "crank revolution" : "slider stroke", ". Add a load, torque, spring, or damper to unlock this. To use gravity, set a mass on the Elements step first, then turn it on here. Mass and inertia are otherwise optional: an unset link defaults to massless.");
     })(), React.createElement(HigherPairForces, { dyn: dynamicsNow, cycle: dynamicsCycle, joints, jointNames, T, S }), dynamicsEligible && !dynamicsNow?.ok && React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, lineHeight: 1.45 } }, dynamicsNow?.reason === "topology" ? `This topology is not supported yet${dynamicsNow.detail ? ` (${dynamicsNow.detail})` : ""}.` : dynamicsNow?.reason === "singular" ? `The reaction system is singular at this pose: a degenerate force geometry. Try a slightly different ${driverKind === "rotation" ? "\u03B8\u2082" : "s\u2082"}. This recalculates automatically as it changes.` : dynamicsNow?.reason === "negative-mass" ? (() => {
       const who = [
         ...(dynamicsNow.negativeLinks || []).map((id) => `link ${numbers?.[id] ?? id}`),
@@ -7555,6 +7555,61 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     return [head, ...body].join("\n");
   }
 
+  var TRACE_POINT_LIMIT = 800;
+  var isTraceableJoint = (joint) => !joint.ground && joint.type !== "slider";
+  function normalizeTraceJoints(joints, selected) {
+    const eligible = new Set(joints.filter(isTraceableJoint).map((j) => j.id));
+    const ids = Array.isArray(selected) ? selected : typeof selected === "string" ? [selected] : [];
+    return [...new Set(ids)].filter((id) => eligible.has(id));
+  }
+  function retainTraces(trails, selected) {
+    const keep = new Set(selected);
+    for (const id of trails.keys()) if (!keep.has(id)) trails.delete(id);
+  }
+  function recordTraces(trails, selected, positions) {
+    for (const id of selected) {
+      const p = positions[id];
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+      const points = trails.get(id) || [];
+      const last = points[points.length - 1];
+      if (last && Math.hypot(p.x - last.x, p.y - last.y) < 1e-9) continue;
+      points.push({ x: p.x, y: p.y });
+      if (points.length > TRACE_POINT_LIMIT) points.shift();
+      trails.set(id, points);
+    }
+  }
+  function cycleTracePaths(cycle, selected) {
+    const paths = new Map(selected.map((id) => [id, []]));
+    for (const { s } of cycle.samples) {
+      for (const [id, points] of paths) {
+        const p = s.pos[id];
+        if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) points.push(p);
+      }
+    }
+    return paths;
+  }
+  function traceStyle(index = 0, theme) {
+    const colors = theme.chartCategorical;
+    const patterns = [[], [8, 3], [2, 3], [8, 3, 2, 3]];
+    return { color: colors[index % colors.length], dash: patterns[Math.floor(index / colors.length) % patterns.length] };
+  }
+  function drawTracePaths(ctx, paths, indices, theme, SX, SY, { preview = false, closed = false } = {}) {
+    ctx.save();
+    ctx.lineWidth = 1.8;
+    ctx.globalAlpha = preview ? 0.85 : 1;
+    for (const [id, points] of paths) {
+      if (points.length < 2 || !indices.has(id)) continue;
+      const style = traceStyle(indices.get(id), theme);
+      ctx.strokeStyle = style.color;
+      ctx.setLineDash(preview && !style.dash.length ? [4, 4] : style.dash);
+      ctx.beginPath();
+      points.forEach((p, i) => i ? ctx.lineTo(SX(p.x), SY(p.y)) : ctx.moveTo(SX(p.x), SY(p.y)));
+      if (closed) ctx.closePath();
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   var TAU5 = 2 * Math.PI;
   var wrap2 = (x, period) => (x % period + period) % period;
   var angleDelta = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
@@ -8534,9 +8589,25 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const rafRef = useRef(null);
     const fileRef = useRef(null);
     const kinemechFileRef = useRef(null);
-    const traceRef = useRef([]);
-    const [traceJoint, setTraceJoint] = useState(null);
+    const traceRef = useRef(new Map());
+    const [traceJoints, setTraceJoints] = useState([]);
+    const [pathJoint, setPathJoint] = useState(null);
     const [showFullPath, setShowFullPath] = useState(false);
+    const traceableJoints = useMemo(() => joints.filter(isTraceableJoint), [joints]);
+    const traceIndices = useMemo(() => new Map(traceableJoints.map((j, i) => [j.id, i])), [traceableJoints]);
+    const pathTraceJoint = traceJoints.includes(pathJoint) ? pathJoint : traceJoints[0] || null;
+    const selectTrace = (value) => {
+      if (value === "off") {
+        setTraceJoints([]);
+        return;
+      }
+      if (value === "all") {
+        setTraceJoints(traceableJoints.map((j) => j.id));
+        return;
+      }
+      const id = value.startsWith("point:") ? value.slice(6) : null;
+      if (traceIndices.has(id)) setTraceJoints((ids) => ids.includes(id) ? ids : [...ids, id]);
+    };
     const [camSource, setCamSource] = useState(null);
     const [showGhosts, setShowGhosts] = useState(false);
     const [showEquiv, setShowEquiv] = useState(false);
@@ -8907,16 +8978,16 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       const rate1 = driverKind === "rotation" ? w2 : v2, rate2 = driverKind === "rotation" ? al2 : a2;
       return sweepCycle(joints, links, driverKind, driverRef, rate1, rate2, driveRange);
     }, [showPlots, step, driveRange, driverRef, driverKind, joints, links, w2, al2, v2, a2]);
-    const wantsPosCycle = !!(showFullPath && traceJoint) || joints.some((j) => j.type === "slider" && !j.ground && j.slotLink && !j.slotAngleLock);
+    const wantsPosCycle = !!(showFullPath && traceJoints.length) || joints.some((j) => j.type === "slider" && !j.ground && j.slotLink && !j.slotAngleLock);
     const posCycle = useMemo(() => {
       if (cycleData) return cycleData;
       if (!wantsPosCycle || step !== "solve" || !driveRange || !driverRef) return null;
       return sweepCycle(joints, links, driverKind, driverRef, 0, 0, driveRange);
     }, [cycleData, wantsPosCycle, step, driveRange, driverRef, driverKind, joints, links]);
-    const fullPath = useMemo(() => {
-      if (!showFullPath || !traceJoint || !posCycle) return null;
-      return posCycle.samples.map(({ s }) => s.pos[traceJoint]).filter(Boolean);
-    }, [posCycle, showFullPath, traceJoint]);
+    const fullPaths = useMemo(() => {
+      if (!showFullPath || !traceJoints.length || !posCycle) return null;
+      return cycleTracePaths(posCycle, traceJoints);
+    }, [posCycle, showFullPath, traceJoints]);
     const slotTravel = useMemo(() => {
       if (!posCycle) return null;
       const slotJs = joints.filter((j) => j.type === "slider" && !j.ground && j.slotLink && !j.slotAngleLock);
@@ -8943,7 +9014,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       return out;
     }, [posCycle, joints, links]);
     const sendTracedPath = () => {
-      if (!onSendPath || !traceJoint || !driveRange || !driverRef) return;
+      if (!onSendPath || !pathTraceJoint || !driveRange || !driverRef) return;
       const cyc = sweepCycle(joints, links, driverKind, driverRef, 1, 0, driveRange);
       if (!cyc) {
         flash("Couldn't sweep the cycle to extract a path.", 5e3, "problem");
@@ -8952,7 +9023,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       const rot = driverKind === "rotation";
       const pts = [];
       cyc.samples.forEach(({ theta, s }) => {
-        const p = s.pos[traceJoint];
+        const p = s.pos[pathTraceJoint];
         if (p) pts.push({ x: p.x, y: p.y, theta: rot ? deg(theta) : null });
       });
       if (pts.length < 2) {
@@ -8963,8 +9034,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         closed: !!cyc.full,
         units: { scaleFactor, unitLabel },
         source: "analyzer",
-        label: jointNames[traceJoint] || traceJoint
-      }), `${jointNames[traceJoint] || traceJoint} traced`);
+        label: jointNames[pathTraceJoint] || pathTraceJoint
+      }), `${jointNames[pathTraceJoint] || pathTraceJoint} traced`);
     };
     const SEND_CAM_MIN_MS = 300;
     const sendCamProgram = () => {
@@ -9583,19 +9654,16 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       if (step !== "solve") setPlaying(false);
     }, [step]);
     useEffect(() => {
-      if (solution.ok && playing && traceJoint && solution.recon[traceJoint]) {
-        const p = solution.recon[traceJoint], last = traceRef.current[traceRef.current.length - 1];
-        if (last && Math.hypot(p.x - last.x, p.y - last.y) < 1e-9) return;
-        traceRef.current.push({ ...p });
-        if (traceRef.current.length > 800) traceRef.current.shift();
-      }
-    }, [solution, playing, traceJoint]);
+      traceRef.current.clear();
+    }, [driverKind, crankLink, driverJoint, groundLink, joints, links]);
     useEffect(() => {
-      traceRef.current = [];
-    }, [traceJoint, driverKind, crankLink, driverJoint, groundLink, joints, links]);
+      const selected = normalizeTraceJoints(joints, traceJoints);
+      retainTraces(traceRef.current, selected);
+      if (selected.length !== traceJoints.length) setTraceJoints(selected);
+    }, [joints, traceJoints]);
     useEffect(() => {
-      if (traceJoint && !joints.some((j) => j.id === traceJoint && !j.ground)) setTraceJoint(null);
-    }, [joints, traceJoint]);
+      if (solution.ok && playing) recordTraces(traceRef.current, traceJoints, solution.recon);
+    }, [solution, playing, traceJoints]);
     useEffect(() => {
       const ro = new ResizeObserver((entries) => {
         for (const e of entries) canvasBox.current.set(e.target, { W: Math.round(e.contentRect.width), H: Math.round(e.contentRect.height) });
@@ -10965,28 +11033,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         drawGhost(ghostRange.poseMin, driverKind === "rotation" ? "\u03B8\u2082 min" : "s\u2082 min");
         drawGhost(ghostRange.poseMax, driverKind === "rotation" ? "\u03B8\u2082 max" : "s\u2082 max");
       }
-      if (useSolved && fullPath && fullPath.length > 1 && !fbd) {
-        ctx.strokeStyle = CT.trace;
-        ctx.lineWidth = 1.6;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        fullPath.forEach((p, i) => {
-          const x = SX(p.x), y = SY(p.y);
-          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-        });
-        if (thetaRange && thetaRange.full) ctx.closePath();
-        ctx.stroke();
-        ctx.setLineDash([]);
+      if (useSolved && fullPaths && !fbd) {
+        drawTracePaths(ctx, fullPaths, traceIndices, CT, SX, SY, { preview: true, closed: !!posCycle?.full });
       }
-      if (useSolved && traceRef.current.length > 1 && !fbd) {
-        ctx.strokeStyle = CT.trace;
-        ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        traceRef.current.forEach((p, i) => {
-          const x = SX(p.x), y = SY(p.y);
-          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-        });
-        ctx.stroke();
+      if (useSolved && traceRef.current.size && !fbd) {
+        drawTracePaths(ctx, traceRef.current, traceIndices, CT, SX, SY);
       }
       for (const j of fbd ? [] : joints) {
         if (j.type !== "gear") continue;
@@ -11551,6 +11602,13 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           ctx.fill();
           ctx.stroke();
           if (j.ground) drawGround(ctx, x, y, CT);
+        }
+        if (useSolved && !fbd && traceJoints.includes(j.id)) {
+          ctx.strokeStyle = traceStyle(traceIndices.get(j.id), CT).color;
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.arc(x, y, 9, 0, TAU4);
+          ctx.stroke();
         }
         ctx.font = "700 13px ui-monospace,monospace";
         const jlbl = jointNames[j.id] || j.id;
@@ -12346,7 +12404,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           ctx.setLineDash([]);
         }
       }
-    }, [joints, links, elements, img, imgOpacity, showImg, imgOrigin, view, resizeTick, step, pendingLink, tool, placingJoint, hoverJoint, focus, hoverItem, solution, groundLink, driverKind, crankLink, driverJoint, linkNumbers, sliderNumbers, jointNames, theta2, s2, dimensions, dimDraft, hoverDimId, angleMeasures, measureDraft, showAngleMeasures, unitLabel, scaleFactor, calibrating, calibPts, dark, pendingSlider, pendingGear, pendingCam, pairPick, pairCandidates, cursorWorld, isFrameLink, overlayMode, magnify, playing, fbdOn, dynamicsNow, effectiveLinks, explodeFactor, gravityOn, gravityMag, hoverFBD, showPlots, fullPath, showGhosts, showEquiv, showCamContact, fbdShowValues, thetaRange, sRange, deadPoints, resultsTab, balanceResult, slotTravel]);
+    }, [joints, links, elements, img, imgOpacity, showImg, imgOrigin, view, resizeTick, step, pendingLink, tool, placingJoint, hoverJoint, focus, hoverItem, solution, groundLink, driverKind, crankLink, driverJoint, linkNumbers, sliderNumbers, jointNames, theta2, s2, dimensions, dimDraft, hoverDimId, angleMeasures, measureDraft, showAngleMeasures, unitLabel, scaleFactor, calibrating, calibPts, dark, pendingSlider, pendingGear, pendingCam, pairPick, pairCandidates, cursorWorld, isFrameLink, overlayMode, magnify, playing, fbdOn, dynamicsNow, effectiveLinks, explodeFactor, gravityOn, gravityMag, hoverFBD, showPlots, fullPaths, posCycle, traceJoints, traceIndices, showGhosts, showEquiv, showCamContact, fbdShowValues, thetaRange, sRange, deadPoints, resultsTab, balanceResult, slotTravel]);
     useEffect(() => {
       syncCanvasCursor();
     });
@@ -12929,10 +12987,12 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       setCalibPts([]);
       setView({ zoom: 1, panX: 0, panY: 0 });
       setPolyView({ zoom: 1, panX: 0, panY: 0 });
-      setTraceJoint(null);
+      setTraceJoints([]);
+      setPathJoint(null);
+      setShowFullPath(false);
       setPolyBuildOn(false);
       setPolyBuildStep(0);
-      traceRef.current = [];
+      traceRef.current.clear();
       clearAutosave();
       setRecovery(null);
       setDirty(false);
@@ -12963,6 +13023,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       showAngleMeasures,
       gravityOn,
       gravityMag,
+      traceJoints,
+      showFullPath,
       imgOpacity,
       showImg,
       imgOrigin,
@@ -13006,8 +13068,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       setImgOpacity(data.imgOpacity ?? 0.5);
       setShowImg(data.showImg ?? true);
       setImgOrigin(data.imgOrigin ?? { x: 0, y: 0 });
+      setTraceJoints(normalizeTraceJoints(js, data.traceJoints ?? data.traceJoint));
+      setPathJoint(null);
+      setShowFullPath(data.showFullPath ?? false);
       setPlaying(false);
-      traceRef.current = [];
+      traceRef.current.clear();
       if (data.img) {
         const im = new Image();
         im.onload = () => {
@@ -13059,9 +13124,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     };
     const loadPreset = (preset) => {
       applySnapshot(preset.data);
-      const trace = preset.data.joints.some((j) => j.id === preset.traceJoint && !j.ground) ? preset.traceJoint : null;
-      setTraceJoint(trace);
-      setShowFullPath(!!trace);
+      const traces = normalizeTraceJoints(preset.data.joints, preset.traceJoints ?? preset.traceJoint);
+      setTraceJoints(traces);
+      setShowFullPath(traces.length > 0);
       setDirty(false);
       setOrigin(null);
       flash(`Loaded "${preset.name}"`, 1800);
@@ -13088,7 +13153,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       imgOpacity,
       showImg,
       imgOrigin,
-      elements
+      elements,
+      traceJoints,
+      showFullPath
     ];
     useEffect(() => {
       const wasLoad = loadedNotEditedRef.current;
@@ -13260,7 +13327,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     }, [active, histTick, step, canNext, showLaunch, jointMenu, joints, tool, pendingLink, dimDraft, measureDraft, fbd]);
     const elementScopeNote = "This computes the force or torque carried by an element as the mechanism moves through its prescribed cycle (kinetostatics). The driver's \u03C9/\u03B1 or v/a, set on the Drive step, stays fixed regardless of what the spring or damper does. Use it to size a spring against gravity, check a gas strut, or find peak damper force over a stroke. It does not simulate how the mechanism moves on its own.";
     const dynamicsOk = !!dynamicsNow?.ok;
-    const legendEl = useMemo(() => React.createElement("div", { style: S.legend }, React.createElement(Leg, { c: T.accent, t: driverKind === "rotation" ? "crank (input link)" : "driven joint (input)" }), React.createElement(Leg, { c: T.accentBlue, t: "moving link" }), React.createElement(Leg, { c: T.ground, t: "ground (link 1)" }), React.createElement(Leg, { c: T.red, t: "grounded joint" }), step === "solve" && traceJoint && React.createElement(Leg, { c: T.resVal, t: `trace: ${jointNames[traceJoint] || traceJoint}` }), step === "solve" && polyMode === "acceleration" && React.createElement(Leg, { c: T.accentBlue, t: "dashed = normal (centripetal)" }), step === "solve" && overlayMode === "vel" && React.createElement(Leg, { c: T.velOverlay, t: "resultant joint velocity" }), step === "solve" && overlayMode === "vel" && React.createElement(Leg, { c: T.velOverlay, t: "arc = link's \u03C9 (CCW+)" }), step === "solve" && overlayMode === "acc" && React.createElement(Leg, { c: T.accOverlay, t: "resultant (absolute) acceleration" }), step === "solve" && overlayMode === "acc" && React.createElement(Leg, { c: T.accOverlay, t: "arc = link's \u03B1 (CCW+)" }), step === "solve" && overlayMode === "acc" && React.createElement(Leg, { c: T.textMuted, t: React.createElement(React.Fragment, null, "pause & magnify a joint for a", React.createElement("sup", null, "n"), "/a", React.createElement("sup", null, "t")) }), step === "solve" && fbdOn && dynamicsOk && React.createElement(Leg, { c: T.forceOverlay, t: "joint reaction force" }), step === "solve" && fbdOn && dynamicsOk && React.createElement(Leg, { c: T.torqueColor, t: driverKind === "rotation" ? "input torque (crank)" : "input force (driven slider)" }), step === "solve" && icsOn && !fbd && React.createElement(Leg, { c: "transparent", t: "\u2295 = instant center of rotation (colored per link)" }), step === "solve" && (links.some((lk) => (lk.loads || []).length || lk.appliedT) || joints.some((j) => j.type === "slider" && ((j.loads || []).length || j.appliedT)) || gravityOn && (links.some((lk) => lk.mass != null) || joints.some((j) => j.type === "slider" && j.mass != null))) && React.createElement(Leg, { c: T.loadColor, t: "applied load / torque / weight (gravity)" })), [S, T, driverKind, step, traceJoint, jointNames, polyMode, overlayMode, fbdOn, dynamicsOk, icsOn, !!fbd, links, joints, gravityOn]);
+    const legendEl = useMemo(() => React.createElement("div", { style: S.legend }, React.createElement(Leg, { c: T.accent, t: driverKind === "rotation" ? "crank (input link)" : "driven joint (input)" }), React.createElement(Leg, { c: T.accentBlue, t: "moving link" }), React.createElement(Leg, { c: T.ground, t: "ground (link 1)" }), React.createElement(Leg, { c: T.red, t: "grounded joint" }), step === "solve" && traceJoints.map((id) => React.createElement(Leg, { key: `trace:${id}`, c: traceStyle(traceIndices.get(id), T).color, t: `trace: ${jointNames[id] || id}` })), step === "solve" && polyMode === "acceleration" && React.createElement(Leg, { c: T.accentBlue, t: "dashed = normal (centripetal)" }), step === "solve" && overlayMode === "vel" && React.createElement(Leg, { c: T.velOverlay, t: "resultant joint velocity" }), step === "solve" && overlayMode === "vel" && React.createElement(Leg, { c: T.velOverlay, t: "arc = link's \u03C9 (CCW+)" }), step === "solve" && overlayMode === "acc" && React.createElement(Leg, { c: T.accOverlay, t: "resultant (absolute) acceleration" }), step === "solve" && overlayMode === "acc" && React.createElement(Leg, { c: T.accOverlay, t: "arc = link's \u03B1 (CCW+)" }), step === "solve" && overlayMode === "acc" && React.createElement(Leg, { c: T.textMuted, t: React.createElement(React.Fragment, null, "pause & magnify a joint for a", React.createElement("sup", null, "n"), "/a", React.createElement("sup", null, "t")) }), step === "solve" && fbdOn && dynamicsOk && React.createElement(Leg, { c: T.forceOverlay, t: "joint reaction force" }), step === "solve" && fbdOn && dynamicsOk && React.createElement(Leg, { c: T.torqueColor, t: driverKind === "rotation" ? "input torque (crank)" : "input force (driven slider)" }), step === "solve" && icsOn && !fbd && React.createElement(Leg, { c: "transparent", t: "\u2295 = instant center of rotation (colored per link)" }), step === "solve" && (links.some((lk) => (lk.loads || []).length || lk.appliedT) || joints.some((j) => j.type === "slider" && ((j.loads || []).length || j.appliedT)) || gravityOn && (links.some((lk) => lk.mass != null) || joints.some((j) => j.type === "slider" && j.mass != null))) && React.createElement(Leg, { c: T.loadColor, t: "applied load / torque / weight (gravity)" })), [S, T, driverKind, step, traceJoints, traceIndices, jointNames, polyMode, overlayMode, fbdOn, dynamicsOk, icsOn, !!fbd, links, joints, gravityOn]);
     const staleWarning = useMemo(() => !readout.live.ok && React.createElement("div", { style: { ...S.hint, color: T.red, marginBottom: 10 } }, solveError(readout.live, joints), " Showing the last assembled pose below."), [readout.live, joints, S, T]);
     return React.createElement(ThemeContext.Provider, { value: T }, React.createElement(FocusContext.Provider, { value: focusCtx }, React.createElement("div", { ref: rootRef, style: S.root }, React.createElement("header", { style: {
       ...S.head,
@@ -13767,28 +13834,45 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         loadPick,
         setLoadPick
       }
-    ))), step === "solve" && React.createElement(React.Fragment, null, React.createElement(P, null, "The vector loop is solved by Newton\u2013Raphson for position, then differentiated for velocity and acceleration. Drag the slider or press play."), React.createElement("label", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 12 } }, React.createElement("span", { style: { fontSize: 12.5, color: T.textSub } }, "Trace"), React.createElement(
+    ))), step === "solve" && React.createElement(React.Fragment, null, React.createElement(P, null, "The vector loop is solved by Newton\u2013Raphson for position, then differentiated for velocity and acceleration. Drag the slider or press play."), React.createElement("div", { role: "group", "aria-label": "Point traces", style: { marginTop: 12 } }, React.createElement("label", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 } }, React.createElement("span", { style: { fontSize: 12.5, color: T.textSub } }, "Trace"), React.createElement(
       "select",
       {
-        value: traceJoint || "",
-        onChange: (e) => setTraceJoint(e.target.value || null),
-        disabled: fbd,
-        title: fbd ? "Hidden while FBD is showing. The exploded view already shows link motion." : void 0,
+        value: "",
+        onChange: (e) => selectTrace(e.target.value),
+        disabled: !!fbd || !traceableJoints.length,
+        title: fbd ? "Hidden while FBD is showing" : "Choose a point to add its trace",
         style: { width: 130 }
       },
-      React.createElement("option", { value: "" }, "off"),
-      joints.filter((j) => !j.ground).map((j) => React.createElement("option", { key: j.id, value: j.id }, jointNames[j.id] || j.id))
-    )), traceJoint && React.createElement("label", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 8 } }, React.createElement("span", { style: { fontSize: 12.5, color: T.textSub } }, "Full path"), React.createElement(
+      React.createElement("option", { value: "" }, traceJoints.length ? "Add point\u2026" : "off"),
+      React.createElement("option", { value: "all", disabled: traceJoints.length === traceableJoints.length }, "All"),
+      React.createElement("option", { value: "off", disabled: !traceJoints.length }, "Off (clear traces)"),
+      traceableJoints.map((j) => React.createElement("option", { key: j.id, value: `point:${j.id}`, disabled: traceJoints.includes(j.id) }, jointNames[j.id] || j.id, traceJoints.includes(j.id) ? " (traced)" : ""))
+    )), React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 4, marginTop: traceJoints.length ? 8 : 0 } }, traceJoints.map((id) => {
+      const style = traceStyle(traceIndices.get(id), T), name = jointNames[id] || id;
+      return React.createElement("div", { key: id, style: { display: "flex", alignItems: "center", gap: 8, fontSize: 12 } }, React.createElement("span", { "aria-hidden": "true", style: { width: 18, borderTop: `2px ${style.dash.length ? "dashed" : "solid"} ${style.color}` } }), React.createElement("span", { style: { flex: 1, color: T.text } }, name), React.createElement(
+        "button",
+        {
+          className: "btn",
+          disabled: !!fbd,
+          "aria-label": `Remove ${name} trace`,
+          style: { padding: "2px 6px", fontSize: 10.5 },
+          onClick: () => setTraceJoints((ids) => ids.filter((other) => other !== id))
+        },
+        "Remove"
+      ));
+    })), fbd && React.createElement("div", { style: { fontSize: 11.5, color: T.textSub, marginTop: 8, lineHeight: 1.45 } }, "Traces are hidden in the exploded view.")), traceJoints.length > 0 && React.createElement("label", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 8 } }, React.createElement("span", { style: { fontSize: 12.5, color: T.textSub } }, "Full paths"), React.createElement(
       "button",
       {
         className: "btn" + (showFullPath ? " on" : ""),
-        disabled: fbd,
-        title: fbd ? "Hidden while FBD is showing" : "Draw the traced joint's whole reachable path immediately, no playback needed",
+        disabled: !!fbd,
+        "aria-pressed": showFullPath,
+        "aria-label": "Show full trace paths",
+        title: fbd ? "Hidden while FBD is showing" : "Draw every selected point's whole reachable path immediately, no playback needed",
         style: { padding: "3px 8px", fontSize: 10.5 },
         onClick: () => setShowFullPath((v) => !v)
       },
       showFullPath ? "on" : "off"
-    )), onSendPath && traceJoint && React.createElement(
+    )), onSendPath && pathTraceJoint && React.createElement(React.Fragment, null, traceJoints.length > 1 && React.createElement("label", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 12 } }, React.createElement("span", { style: { fontSize: 12.5, color: T.textSub } }, "Path to fit"), React.createElement("select", { value: pathTraceJoint, onChange: (e) => setPathJoint(e.target.value), style: { width: 130 } }, traceJoints.map((id) => React.createElement("option", { key: id, value: id }, jointNames[id] || id)))), React.createElement(
       "button",
       {
         className: "btn",
@@ -13797,8 +13881,10 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         title: "Open this traced path in the synthesizer and fit a new linkage to it",
         onClick: sendTracedPath
       },
-      "Fit this path in Synthesizer \u2192"
-    ), React.createElement("label", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 12 } }, React.createElement("span", { style: { fontSize: 12.5, color: T.textSub } }, "Cam source"), React.createElement(
+      "Fit ",
+      jointNames[pathTraceJoint] || pathTraceJoint,
+      " path in Synthesizer \u2192"
+    )), React.createElement("label", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 12 } }, React.createElement("span", { style: { fontSize: 12.5, color: T.textSub } }, "Cam source"), React.createElement(
       "select",
       {
         value: camSource || "",
@@ -14491,6 +14577,10 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         onStopBalance: resultsHandlers.onStopBalance,
         onRemoveBalance: resultsHandlers.onRemoveBalance,
         onCompareBalance: resultsHandlers.onCompareBalance,
+        gravityOn,
+        setGravityOn,
+        gravityMag,
+        setGravityMag,
         staleWarning,
         legend: legendEl
       }
