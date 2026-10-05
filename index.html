@@ -6573,7 +6573,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const whole = (lk) => lk.joints.length >= 2 && lk.joints.every((id) => jmap.has(id));
     const isFrame = (lk) => lk.joints.every((id) => isFixedPin(jmap.get(id)));
     const moving = links.filter((lk) => whole(lk) && !isFrame(lk));
-    const n2 = 1 + moving.length + joints.filter((j) => j.type === "slider").length;
+    const ground = joints.some((j) => j.ground) ? 1 : 0;
+    const n2 = ground + moving.length + joints.filter((j) => j.type === "slider").length;
     let j1 = 0;
     for (const j of joints) {
       const on = moving.filter((lk) => lk.joints.includes(j.id)).length;
@@ -6585,7 +6586,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       }
     }
     const j2 = constraintRows(joints, links).cons.filter((c) => c.type === "gear" || c.type === "cam").length;
-    return { n: n2, j1, j2, M: 3 * (n2 - 1) - 2 * j1 - j2 };
+    return { n: n2, ground, j1, j2, M: 3 * (n2 - ground) - 2 * j1 - j2 };
   }
   var cachedJ = null;
   var cachedJMaxN = 0;
@@ -10656,7 +10657,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const sliderNumbers = useMemo(() => {
       const nums = {};
       const used = Object.values(linkNumbers);
-      let n2 = (used.length ? Math.max(...used) : 1) + 1;
+      let n2 = (used.length ? Math.max(...used) : joints.some((j) => j.ground) ? 1 : 0) + 1;
       for (const j of joints) if (j.type === "slider") nums[j.id] = n2++;
       return nums;
     }, [joints, linkNumbers]);
@@ -12728,6 +12729,13 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     };
     const mobParts = useMemo(() => mobilityParts(joints, links), [joints, links]);
     const mob = mobParts.unknowns - mobParts.constraints;
+    const loosePins = useMemo(() => {
+      const ids = new Set(joints.map((j) => j.id));
+      const onLink = new Set(links.filter((lk) => lk.joints.length >= 2 && lk.joints.every((id) => ids.has(id))).flatMap((lk) => lk.joints));
+      return joints.filter((j) => j.type === "pin" && !j.ground && !onLink.has(j.id));
+    }, [joints, links]);
+    const mechanismUnknowns = mobParts.unknowns - 2 * loosePins.length;
+    const mechanismMob = mechanismUnknowns - mobParts.constraints;
     const kutz = useMemo(() => kutzbach(joints, links), [joints, links]);
     const fourbarInfo = useMemo(() => {
       const fb = plainFourbar(joints, links, isFrameLink);
@@ -12788,6 +12796,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
             ok: false,
             note: "Ground at least one joint. Pick the Ground tool and click it, right-click it, or press G with the pointer over it."
           };
+          if (loosePins.length) return {
+            ok: true,
+            warn: true,
+            note: `${loosePins.map((j) => jointNames[j.id] || j.id).join(", ")} ${loosePins.length === 1 ? "is an unconnected sketch point" : "are unconnected sketch points"}. Connect ${loosePins.length === 1 ? "it" : "them"} into links or delete ${loosePins.length === 1 ? "it" : "them"} before solving. The built linkage has ${mechanismMob} ${mechanismMob === 1 ? "degree" : "degrees"} of freedom.`
+          };
           if (mob === 1) return { ok: true, note: "1 degree of freedom. Pick the one input on Drive." };
           if (mob === 0) return {
             ok: true,
@@ -12829,7 +12842,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           if (solution.ok) return { ok: true, note: `Solved ${solution.nUnknowns / 2} moving joint${solution.nUnknowns === 2 ? "" : "s"} (${solution.nUnknowns} unknowns). ${solution.singleLoop ? "Single loop." : "Multi-loop."}` };
           return { ok: false, note: solveError(solution, joints) };
       }
-    }, [step, joints, links, elements, mob, driverKind, crankLink, driverJoint, solution, pendingSlider, pendingGear, pendingCam, pairPick, unpairedPairs, brokenMeshes, camJoints, undesignedCams, onDesignCam, jointNames]);
+    }, [step, joints, links, elements, mob, loosePins, mechanismMob, driverKind, crankLink, driverJoint, solution, pendingSlider, pendingGear, pendingCam, pairPick, unpairedPairs, brokenMeshes, camJoints, undesignedCams, onDesignCam, jointNames]);
     const stepStatus = useMemo(() => statusFor(step), [statusFor, step]);
     const showLaunch = joints.length === 0 && !recovery && !launchDismissed;
     const suggestRotate = compact && portrait && !rotateDismissed && !showLaunch;
@@ -13529,7 +13542,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       },
       j.ground && React.createElement(Icon, { name: "ground", size: 12 }),
       jointNames[j.id] || j.id
-    ))), React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, lineHeight: 1.45 } }, groundLink ? `Link ${linkNumbers[groundLink]} has every joint grounded, so it is the frame.` : "The frame is link 1 whether you draw it or not. Draw a bar between grounded joints and it becomes that link. Either way, one or more grounded joints is all it needs.")), joints.filter((j) => j.type === "slider" && !j.ground).length > 0 && React.createElement(
+    ))), React.createElement("div", { style: { fontSize: 11.5, color: T.textMuted, lineHeight: 1.45 } }, groundLink ? `Link ${linkNumbers[groundLink]} has every joint grounded, so it is the frame.` : "Ground a pivot or slider rail to establish the frame as link 1. A bar between fixed grounded joints represents that frame; drawing it is optional.")), joints.filter((j) => j.type === "slider" && !j.ground).length > 0 && React.createElement(
       Section,
       {
         title: "Pin-in-slot (rotating guide)",
@@ -14482,8 +14495,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         legend: legendEl
       }
     ) : React.createElement("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", ...S.panelInset } }, step === "topology" && joints.length > 0 && (() => {
-      const col = mob === 1 ? T.accent : T.poiColor;
-      if (kutz.M === mob) return React.createElement(
+      const col = mechanismMob === 1 ? T.accent : T.poiColor;
+      const looseNote = loosePins.length ? `${loosePins.map((j) => jointNames[j.id] || j.id).join(", ")} ${loosePins.length === 1 ? "is an unconnected sketch point" : "are unconnected sketch points"}, excluded from linkage mobility. Connect ${loosePins.length === 1 ? "it" : "them"} into links or delete ${loosePins.length === 1 ? "it" : "them"} before solving. ` : "";
+      if (kutz.M === mechanismMob) return React.createElement(
         StepSummary,
         {
           title: "Mobility (Kutzbach)",
@@ -14491,22 +14505,21 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
             ["links, n", kutz.n, T.accent],
             ["full joints, j\u2081", kutz.j1, T.accent],
             ["half joints, j\u2082", kutz.j2, T.accent],
-            ["M", `3(${kutz.n} \u2212 1) \u2212 2\xB7${kutz.j1} \u2212 ${kutz.j2} = ${kutz.M}`, col]
+            ["M", `3(${kutz.n} \u2212 ${kutz.ground}) \u2212 2\xB7${kutz.j1} \u2212 ${kutz.j2} = ${kutz.M}`, col]
           ],
-          note: "n counts the frame and every slider block as links. A pin joining k links counts as k \u2212 1 joints. Gear meshes and cam contacts are half joints."
+          note: `${looseNote}${kutz.ground ? "n includes the frame established by grounded pivots or slider rails." : "No frame is assigned until a pivot or slider rail is grounded; the assembly retains its three rigid-body degrees of freedom."} Every slider block also counts as a link. A pin joining k links counts as k \u2212 1 joints. Gear meshes and cam contacts are half joints.`
         }
       );
-      const loose = joints.some((j) => !links.some((lk) => lk.joints.includes(j.id)));
       return React.createElement(
         StepSummary,
         {
           title: "Mobility",
           rows: [
-            ["unknowns", mobParts.unknowns, T.accent],
+            ["unknowns", mechanismUnknowns, T.accent],
             ["constraints", mobParts.constraints, T.accent],
-            ["DOF", `${mobParts.unknowns} \u2212 ${mobParts.constraints} = ${mob}`, col]
+            ["DOF", `${mechanismUnknowns} \u2212 ${mobParts.constraints} = ${mechanismMob}`, col]
           ],
-          note: `${loose ? "Kutzbach's equation shows once every joint is on a link." : "Kutzbach's equation counts a free slider or a locked slot differently, so this is the solver's own count."} Each moving joint adds two unknowns, its x and y. Each fixed length, slider guide, or gear or cam pair removes one.`
+          note: `${looseNote}Kutzbach's equation counts a free slider or a locked slot differently, so this uses the linkage's coordinate count. Each moving joint on the linkage adds two unknowns, its x and y. Each fixed length, slider guide, or gear or cam pair removes one.`
         }
       );
     })(), step === "geometry" && fourbarInfo && (() => {
