@@ -114,7 +114,9 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
 
   .no-spin::-webkit-outer-spin-button,.no-spin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .no-spin{-moz-appearance:textfield;appearance:none}
-  .btn{padding:8px 12px;border-radius:4px;border:1px solid #c8d0de;background:#eef1f6;color:#1a2236;font:600 12.5px ui-monospace,monospace;cursor:pointer;transition:.12s}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;vertical-align:middle;padding:8px 12px;border-radius:4px;border:1px solid #c8d0de;background:#eef1f6;color:#1a2236;font:600 12.5px ui-monospace,monospace;cursor:pointer;transition:.12s}
+  button > svg{display:block;flex-shrink:0}
+  .btn.tap{max-width:100%}
   .btn:hover{border-color:#4f9dde}
   .btn:disabled{opacity:.4;cursor:not-allowed}
   .btn.pri{background:#4f9dde;color:#fff;border-color:#4f9dde}
@@ -135,14 +137,16 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     outline:none}
 
   @media (pointer: coarse){
-    .btn{padding:11px 14px}
-    .xbtn{width:30px;height:30px;font-size:15px}
     input[type=number],input[type=text],select{padding:9px 10px}
     input[type=range]{height:6px}
     input[type=range]::-webkit-slider-thumb{width:22px;height:22px}
+  }
 
-    .tap,.zoombox > button,[role=toolbar] button,header button,.tap-row button{min-width:44px;min-height:44px}
-    .tap-row input[type=number]{min-height:44px}
+  @media (max-height: 500px){
+    [role=toolbar]{gap:3px !important;padding:4px !important;max-height:calc(100% - 64px);overflow-y:auto}
+    [role=toolbar] > div{gap:3px !important}
+    [role=toolbar] button{padding:3px !important}
+    [role=toolbar] button > svg{width:16px;height:16px}
   }
 
   .hscroll{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
@@ -4016,7 +4020,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     val: { fontSize: 12, color: T.text, minWidth: 46, textAlign: "right", fontWeight: 600 },
     spd: { display: "flex", alignItems: "center", gap: 7 },
     zoomBox: { position: "absolute", bottom: 10, right: 10, display: "flex", alignItems: "center", gap: 4, background: T.zoomBg, border: `1px solid ${T.zoomBorder}`, borderRadius: 4, padding: "4px 6px" },
-    zoomBtn: { width: 24, height: 24, borderRadius: 4, border: `1px solid ${T.zoomBorder}`, background: T.zoomBtnBg, color: T.text, font: "600 14px ui-monospace,monospace", cursor: "pointer", lineHeight: 1, padding: 0 },
+    zoomBtn: { width: 24, height: 24, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxSizing: "border-box", borderRadius: 4, border: `1px solid ${T.zoomBorder}`, background: T.zoomBtnBg, color: T.text, font: "600 14px ui-monospace,monospace", cursor: "pointer", lineHeight: 1, padding: 0 },
     zoomLbl: { fontSize: 11, color: T.textSub, minWidth: 38, textAlign: "center", font: "600 11px ui-monospace,monospace" },
     rowItem: { display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", background: T.row, borderRadius: 4, border: `1px solid ${T.rowBorder}`, marginBottom: 4, fontSize: 12 },
 
@@ -6229,7 +6233,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     } }, label);
   }
   function CopyrightTag({ T, style = {} }) {
-    const lift = useMedia("(max-width: 640px)") ? 56 : 0;
+    const lift = useMedia("(max-width: 640px)") ? 36 : 0;
     return React.createElement("div", { style: {
       position: "absolute",
       left: 12,
@@ -13415,7 +13419,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           title: st?.note ? `${STEP_LABEL[s]}: ${st.note}` : STEP_LABEL[s],
           "aria-current": on ? "step" : void 0,
           style: {
-            padding: narrow ? "10px 10px" : "6px 10px",
+            padding: "6px 10px",
             fontSize: 11,
             display: "flex",
             alignItems: "center",
@@ -13439,7 +13443,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       "button",
       {
         className: "btn",
-        style: { padding: narrow ? "9px 11px" : "6px 9px" },
+        style: { padding: "6px 9px" },
         disabled: !canUndo,
         title: "Undo (Ctrl+Z)",
         "aria-label": "Undo",
@@ -13450,7 +13454,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       "button",
       {
         className: "btn",
-        style: { padding: narrow ? "9px 11px" : "6px 9px" },
+        style: { padding: "6px 9px" },
         disabled: !canRedo,
         title: "Redo (Ctrl+Y)",
         "aria-label": "Redo",
@@ -24498,7 +24502,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       {
         key: m,
         className: "btn" + (mode === m ? " on" : ""),
-        style: { padding: narrow ? "7px 9px" : "6px 9px", fontSize: 11.5, flex: "0 0 auto", whiteSpace: "nowrap" },
+        style: { padding: "6px 9px", fontSize: 11.5, flex: "0 0 auto", whiteSpace: "nowrap" },
         onClick: () => {
           setMode(m);
           setTheta2(0);
@@ -25190,7 +25194,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           className: "btn" + (t.on ? " on" : ""),
           "aria-label": `${t.label}: ${t.tip}`,
           ...t.id === "reset" ? {} : { "aria-pressed": t.on },
-          style: { display: "flex", justifyContent: "center", padding: "6px 9px" },
+          style: { display: "flex", alignItems: "center", justifyContent: "center", padding: "6px 9px" },
           onClick: t.click,
           onPointerEnter: () => setHoverCanvasTool(t.id),
           onPointerLeave: () => setHoverCanvasTool((h) => h === t.id ? null : h),
