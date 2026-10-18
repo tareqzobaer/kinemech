@@ -23,6 +23,9 @@ The analyzer supports general planar mechanisms rather than being limited to sta
 ### Kinematic analysis
 
 - Pin, slider, fixed-center gear pairs, rotating-slot joints, and cam-follower pairs.
+- Several cams and gears on one shaft: a cam on a crankshaft, a camshaft geared to the crank, or a stack of cams on one camshaft.
+- Several followers on one cam: identical copies placed at any angle around it, or followers of a different type or roller size riding the same profile.
+- Conjugate cam pairs, where a second cam holds the follower from the other side so no return spring is needed.
 - Multi-loop mechanisms and binary, ternary, and higher-order links.
 - Position analysis using a general constraint formulation.
 - Velocity and acceleration analysis using the same constraint Jacobian.
@@ -56,6 +59,8 @@ The analysis can include:
 The solver determines joint reactions and the input torque required to maintain the prescribed angular velocity and acceleration. Results can be viewed using an exploded free-body diagram and full-cycle plots of reactions, torque, and shaking force.
 
 A counterweight can be added to the driving crank to reduce this shaking force. The exact rotating-mass solution is computed directly, then a numerical search refines its placement to minimize the whole mechanism's shaking force rather than just the crank's own, and a before/after comparison is reported. The search shows its progress while it runs and can be stopped early, keeping the best placement found so far.
+
+For a conjugate cam pair, the analysis shows which cam carries the load at each instant and lists the crossover angles where the load moves from one cam to the other. With clearance in a real pair, those are the angles where it knocks.
 
 This is **kinetostatic analysis**, not forward dynamics. The motion is prescribed, and the analysis determines the forces and torque required to produce that motion.
 
@@ -161,17 +166,26 @@ For plate cams, the follower can be a knife edge, roller, flat face, or spherica
 
 A cam designed in the Profiler can be paired with a follower joint in the analyzer, where the contact is treated as a frictionless higher pair: the solver reports the contact force along the common normal, detects follower jump, and includes any return spring holding the pair closed. The Profiler can also animate the cam turning under its follower and export the result as a GIF.
 
+A cam in the analyzer is not limited to one follower or one shaft:
+
+- **Shared shafts.** A cam or gear can be mounted on another fixed pivot's shaft, so several cams and gears turn together as one body.
+- **Another follower on the same cam.** An exact copy of a cam's follower can be added at any angle around it. It runs the same program, shifted by that angle.
+- **A follower of another type.** A follower of a different type or roller size, such as a rocker in the same groove as a translating follower, rides the cam's existing profile. It has no program of its own: its motion is solved from where its roller touches the profile at every angle.
+- **Conjugate cams.** A second cam on the same shaft, with a second roller on the same follower, holds the follower from the other side. Only the first cam is designed; the second one's profile follows from where its roller sits and updates whenever that roller moves.
+
+While a cam is being redesigned in the Profiler, its other followers and its conjugate cam are drawn alongside it, and the profile export includes the conjugate cam's profile next to the first one.
+
 ## Workflow
 
 The analyzer follows a step-by-step mechanism construction workflow.
 
 1. **Topology**  
-   Place pin, slider, gear, or cam joints. Connect them with rigid links (a link can span two or more joints, allowing binary, ternary, and higher-order links) or with linear/torsional spring-damper elements. Choose which joints are held fixed as the ground.
+   Place pin, slider, gear, or cam joints. Connect them with rigid links (a link can span two or more joints, allowing binary, ternary, and higher-order links) or with linear/torsional spring-damper elements. Choose which joints are held fixed as the ground. A cam or gear placed on an existing fixed pivot mounts on that pivot's shaft.
 
 2. **Geometry**  
    Optionally trace a mechanism from a background image. Scale can be calibrated using two points and a known distance. Exact dimensions can then be specified for driving joints without moving the traced image.
 
-   For gear joints, the pitch radius, mesh partner, and external or internal mesh are specified. For cam joints, the base-circle radius sets a starting size, and the full profile is designed in the Profiler, which can be opened directly from the mechanism.
+   For gear joints, the pitch radius, mesh partner, and external or internal mesh are specified. For cam joints, the base-circle radius sets a starting size, and the full profile is designed in the Profiler, which can be opened directly from the mechanism. A cam's card can also add another follower, a follower of another type, or a conjugate cam.
 
 3. **Elements**  
    Specify mass, inertia, and center of gravity for moving links and sliders. Spring and damper properties can also be defined.
@@ -184,7 +198,7 @@ The analyzer follows a step-by-step mechanism construction workflow.
 
 ## Presets
 
-The application includes thirteen built-in mechanisms:
+The application includes fifteen built-in mechanisms:
 
 - Four-bar with coupler point, mass, and gravity
 - Change-point four-bar
@@ -199,10 +213,10 @@ The application includes thirteen built-in mechanisms:
 - Stephenson III six-bar dwell
 - Plate cam driving a bell-crank and slider
 - Plate cam with a flat-faced follower
+- Conjugate cam with an oscillating follower
+- Grooved cam with two followers of different types
 
 These presets also serve as regression cases for different parts of the solver.
-
-The Jansen walking linkage is two Strandbeest-style legs driven half a turn apart. It opens with one foot traced and its full path drawn: a nearly level stance stroke and a lifted return.
 
 ## File formats and export
 
@@ -255,6 +269,8 @@ Full-cycle plots can be exported as CSV, including:
 - Input torque
 - Shaking force
 - Element forces
+
+The Profiler also exports a cam's profile as CSV coordinates, with the conjugate cam's profile alongside when there is one.
 
 ### GIF export
 
