@@ -1,18 +1,28 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21843046.svg)](https://doi.org/10.5281/zenodo.21843046)
 
-![KineMech — planar mechanism analysis and synthesis](og-image.png)
+![KineMech: planar mechanism kinematics, dynamics and synthesis](og-image.png)
 
 # KineMech
 
-KineMech is a browser-based tool for analysis and synthesis of planar pin and slider mechanisms.
+KineMech is a free, browser-based simulator for planar mechanisms. It is not limited to the textbook four-bar and slider-crank: it solves general mechanisms of any topology, including multi-loop linkages and six-bars, gear trains, pin-in-slot joints, and cams with several followers. For any of them it computes the kinematics, the joint forces, and, since version 4.0, the **full dynamics**: the motion a mechanism actually makes under applied torques, motors, gravity, springs, dampers and flywheels. It also synthesizes linkages and designs cam profiles.
+
+Run it at **[kinemech.app](https://kinemech.app/)**. Nothing to install and no account: it runs entirely in the browser.
+
+| | What you get |
+| --- | --- |
+| **Kinematics** | Position, velocity and acceleration of every joint and link, with Coriolis terms, polygons, dead points and change points |
+| **Forces** | Joint reactions and the input torque a motion needs (kinetostatics), cam contact and gear mesh forces, shaking force, free-body diagrams, balancing |
+| **Dynamics** | The motion an applied torque or force gives (forward dynamics), with motors, speed controllers, time-varying loads, energy balance and flywheel sizing |
+| **Synthesis** | Four-bar motion, path and function generation, quick-return mechanisms, six-bar dwell mechanisms |
+| **Cams** | Plate, cylindrical and linear cam profiles from rise-dwell-fall programs, with pressure angle and undercut checks |
 
 It includes three integrated tools:
 
-- **Analyzer:** builds a mechanism from joints and links and performs position, velocity, acceleration, and optional kinetostatic analysis.
+- **Analyzer:** builds a mechanism from joints and links, then solves its kinematics, its joint forces, and its motion under applied loads.
 - **Synthesizer:** designs four-bar, offset slider-crank, and six-bar mechanisms from prescribed motion, path, function, quick-return, or dwell requirements.
 - **Profiler:** generates plate, cylindrical, or linear cam profiles from a motion program and checks them for pressure angle and undercut.
 
-All three tools use the same mechanism representation. A synthesized mechanism can be transferred directly to the analyzer, and a cam profile designed in the Profiler can be paired with a follower joint there for full kinetostatic analysis of the contact.
+All three tools use the same mechanism representation. A synthesized mechanism can be transferred directly to the analyzer, and a cam profile designed in the Profiler can be paired with a follower joint there for full force analysis and simulation of the contact.
 
 ![KineMech example](jensen.gif)
 
@@ -40,7 +50,7 @@ The analyzer supports general planar mechanisms rather than being limited to sta
 
 ### Kinetostatic analysis
 
-The analyzer can also perform frictionless kinetostatic analysis when mass and inertia properties are specified.
+The analyzer performs frictionless kinetostatic analysis when mass and inertia properties are specified: it answers "what effort does this motion need?"
 
 For each moving link, the user can define:
 
@@ -62,7 +72,42 @@ A counterweight can be added to the driving crank to reduce this shaking force. 
 
 For a conjugate cam pair, the analysis shows which cam carries the load at each instant and lists the crossover angles where the load moves from one cam to the other. With clearance in a real pair, those are the angles where it knocks.
 
-This is **kinetostatic analysis**, not forward dynamics. The motion is prescribed, and the analysis determines the forces and torque required to produce that motion.
+Here the motion is prescribed, and the analysis finds the forces and torque required to produce it. To go the other way, and find the motion a given torque produces, use the dynamics simulation below.
+
+### Dynamics simulation
+
+New in version 4.0. Instead of prescribing the input's motion, apply an effort to it and KineMech simulates the motion that results. This is forward dynamics: it answers "what motion does this effort give?"
+
+The effort on the crank (or on a driven slider) can be:
+
+- None, to watch the mechanism coast or fall under gravity
+- A constant torque or force
+- A DC motor, whose torque falls linearly from stall to zero at the no-load speed
+- A speed controller that pushes toward a target speed within a torque limit
+- A table over time or over the input angle, typed in or pasted from a spreadsheet
+
+Loads and couples on the links can follow their own tables over time or crank angle, for example a gas force on a piston over the power stroke.
+
+Every joint type, spring, damper, load and counterweight that the force analysis handles is also in the simulation, because the simulation uses the same analysis: it asks it twice per step for the inertia seen at the input and everything else, then integrates the input's motion with a fixed fourth-order or an adaptive fifth-order method. The pose is solved exactly at every step, so the loops never drift open.
+
+A run gives:
+
+- A time slider and true-time playback, with every view (polygons, free-body diagram, reactions, cam contact) live at each instant.
+- Plots against time of the input's angle, speed and acceleration, the applied effort, the inertia seen at the input, the energies, and every reaction and element force.
+- Kinetic and potential energy, the work put in, the energy lost in dampers, and an energy balance that should read about zero.
+- A CSV of the whole run and an animated GIF evenly spaced in time.
+
+A run stops, located in time and explained in plain words, rather than continue past a point where the model no longer holds:
+
+- **Follower jump:** a spring-closed cam follower leaves its cam.
+- **Change point:** the linkage reaches a pose where it could continue in either assembly.
+- **Input limit:** a rocking input reaches the end of its swing, or a driven slider the end of its stroke. Optionally the run carries on through it by following a link that keeps turning, so a slider-driven engine with a flywheel can run through its dead centres.
+
+**Flywheels.** A flywheel can be sized from the constant-speed force cycle for a chosen coefficient of speed fluctuation, then simulated under the cycle's mean torque, and the measured fluctuation is shown beside the chosen one. The gap between them is the cost of the constant-speed assumption.
+
+**Units.** Masses are in kg, inertias in kg·m², forces in N and spring rates in N/m. A physical length unit (m, cm, mm, in or ft) can be set for the drawing, so a mechanism drawn in millimetres gives the same forces and motion as the same mechanism in metres.
+
+The simulation agrees with an independent constrained Lagrange solver to about 1e-11, and its energy balance converges at fourth order in the step size.
 
 ## Synthesis
 
@@ -183,38 +228,28 @@ The analyzer follows a step-by-step mechanism construction workflow.
    Place pin, slider, gear, or cam joints. Connect them with rigid links (a link can span two or more joints, allowing binary, ternary, and higher-order links) or with linear/torsional spring-damper elements. Choose which joints are held fixed as the ground. A cam or gear placed on an existing fixed pivot mounts on that pivot's shaft.
 
 2. **Geometry**  
-   Optionally trace a mechanism from a background image. Scale can be calibrated using two points and a known distance. Exact dimensions can then be specified for driving joints without moving the traced image.
+   Optionally trace a mechanism from a background image. Scale can be calibrated using two points and a known distance. Exact dimensions can then be specified for driving joints without moving the traced image. A physical length unit sets what one drawing unit means to the force analysis and the simulation.
 
    For gear joints, the pitch radius, mesh partner, and external or internal mesh are specified. For cam joints, the base-circle radius sets a starting size, and the full profile is designed in the Profiler, which can be opened directly from the mechanism. A cam's card can also add another follower, a follower of another type, or a conjugate cam.
 
 3. **Elements**  
-   Specify mass, inertia, and center of gravity for moving links and sliders. Spring and damper properties can also be defined.
+   Specify mass, inertia, and center of gravity for moving links and sliders, and a flywheel on any link that turns about a fixed pivot. Spring and damper properties can also be defined.
 
 4. **Drive**  
-   Choose the driving link, then specify crank angle, angular velocity, and angular acceleration. For a slider driver, linear velocity and acceleration can be specified instead. Applied forces, torques, and gravity can be included when mass properties are available.
+   Choose the driving link or slider, then choose how it is driven. **Prescribe the motion** sets its angle, speed and acceleration (or position, velocity and acceleration for a slider). **Apply a torque** (or force) sets the effort law, the starting speed, and the run's duration, step and method instead. Applied forces, torques, and gravity can be included when mass properties are available, each optionally following a table.
 
 5. **Solve**  
-   Animate the mechanism and inspect position, velocity, acceleration, joint reactions, and input torque. Velocity and acceleration polygons, free-body diagrams, full-cycle plots, and crank balancing are also available.
+   With prescribed motion, animate the mechanism and inspect position, velocity, acceleration, joint reactions, and input torque. With an applied effort, press **Simulate**, then scrub or play the run in time. Velocity and acceleration polygons, free-body diagrams, plots against crank angle or time, flywheel sizing, and crank balancing are available in both.
 
 ## Presets
 
-The application includes fifteen built-in mechanisms:
+The application includes seventeen built-in mechanisms, grouped by topic in the example picker:
 
-- Four-bar with coupler point, mass, and gravity
-- Change-point four-bar
-- Hoeken straight-line four-bar
-- Jansen walking linkage (two legs on one crank)
-- Spring-returned slider-crank
-- Slider-driven slider-crank
-- Whitworth quick-return
-- Shaper (slotted-lever quick-return)
-- Five-cylinder radial engine
-- Geared four-bar
-- Stephenson III six-bar dwell
-- Plate cam driving a bell-crank and slider
-- Plate cam with a flat-faced follower
-- Conjugate cam with an oscillating follower
-- Grooved cam with two followers of different types
+- **Linkages:** four-bar with coupler point, mass and gravity; change-point four-bar; Hoeken straight-line four-bar; Stephenson III six-bar dwell; Jansen walking linkage (two legs on one crank)
+- **Sliders and quick return:** slider-driven slider-crank; Whitworth quick-return; shaper (slotted-lever quick-return)
+- **Gears:** geared four-bar
+- **Cams:** plate cam driving a bell-crank and slider; plate cam with a flat-faced follower; conjugate cam with an oscillating follower; grooved cam with two followers of different types
+- **Forces and motion:** spring-returned slider-crank; five-cylinder radial engine; four-bar released under its own weight (simulated); single-cylinder engine with a gas force and a flywheel (simulated)
 
 These presets also serve as regression cases for different parts of the solver.
 
@@ -227,10 +262,12 @@ A self-contained JSON mechanism file containing:
 - Joints
 - Links
 - Ground and driving roles
-- Drive state
+- Drive state, including whether the motion is prescribed or simulated, the effort law, and the simulation settings
 - Dimensions
-- Calibration data
+- Calibration data and the physical length unit
 - Embedded background image
+
+A simulated run is not saved in the file; it is recomputed when needed. Files from earlier versions open unchanged.
 
 The file can be saved and loaded directly in KineMech. Synthesized mechanisms use the same format and can therefore be opened in the analyzer.
 
@@ -270,8 +307,14 @@ Full-cycle plots can be exported as CSV, including:
 - Shaking force
 - Element forces
 
+A simulated run exports against time: the input's angle, speed and acceleration, the applied effort, the inertia seen at the input, the energies and the energy balance, then every reaction and element force.
+
 The Profiler also exports a cam's profile as CSV coordinates, with the conjugate cam's profile alongside when there is one.
 
 ### GIF export
 
-A complete drive cycle can be exported as an animated GIF, including the mechanism and the velocity/acceleration polygon panel when it is open.
+A complete drive cycle, or a simulated run with its frames evenly spaced in time, can be exported as an animated GIF, including the mechanism and the velocity/acceleration polygon panel when it is open.
+
+## Citation
+
+If you use KineMech in research or teaching material, please cite it with its Zenodo DOI, [10.5281/zenodo.21843046](https://doi.org/10.5281/zenodo.21843046). `CITATION.cff` carries the current version, 4.0.0.

@@ -4,8 +4,8 @@ authors:
   - family-names: "Zobaer"
     given-names: "Tareq"
     orcid: "https://orcid.org/0000-0002-3907-7203"
-title: "KineMech: Planar mechanism analysis and synthesis"
-version: "3.7.0"
+title: "KineMech: Planar mechanism kinematics, dynamics and synthesis"
+version: "4.0.0"
 doi: "10.5281/zenodo.21843046"
-date-released: 2026-10-18
+date-released: 2026-10-19
 url: "https://github.com/tareqzobaer/kinemech"
