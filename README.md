@@ -218,14 +218,9 @@ coordinates, and Gears exports geometry as CSV and SVG. The Analyzer,
 Synthesizer and Profiler also export animated GIFs. Analyzer GIFs can include
 the velocity and acceleration polygon panel.
 
-## Source and license
+## License
 
-KineMech is released under the [MIT License](LICENSE). This repository holds
-the deployed page and its supporting files. Source code, build instructions
-and tests are in the
-[Mechanism Analyzer repository](https://github.com/tareqzobaer/Mechanism-Analyzer).
-The source can also be built as one offline HTML file containing all four
-tools and their dependencies.
+KineMech is released under the [MIT License](LICENSE).
 
 ## Citation
 
