@@ -9,7 +9,7 @@ browser. You can draw a linkage, calculate its motion and forces, simulate it
 under applied loads, synthesize a mechanism, or design cams and gears.
 
 Use it at **[kinemech.app](https://kinemech.app/)**. No installation or account
-is needed. The current version is **4.5.0**.
+is needed. The current version is **5.0.0**.
 
 The app has four tools:
 
@@ -17,7 +17,7 @@ The app has four tools:
 | --- | --- |
 | **Analyzer** | Calculates position, velocity, acceleration and joint forces, and simulates motion under applied torque or force. |
 | **Synthesizer** | Finds four-bar, offset slider-crank and six-bar mechanisms for prescribed motion, paths, functions, quick return and dwell. |
-| **Profiler** | Designs plate, cylindrical and linear cams from follower motion programs. |
+| **Profiler** | Designs plate, cylindrical and linear cams from follower motion programs, and models the follower's elastic response. |
 | **Gears** | Designs involute gear pairs and solves fixed-axis and planetary gear trains. |
 
 Designs pass directly between the tools. A synthesized linkage opens in the
@@ -39,6 +39,12 @@ acceleration polygons, and plot results over a crank revolution. A plain
 pin-jointed four-bar also gets a Grashof classification and minimum and
 maximum transmission angles.
 
+The instant center of every pair of bodies is listed and drawn, and
+constructed step by step by Kennedy's rule beside its linear graph. The same
+tab gives the velocity of slip at each sliding and cam contact, the velocity
+ratio and mechanical advantage between the input and an output point, the
+fixed and moving centrodes of a pair, and the jerk of every joint and link.
+
 ### Forces and balancing
 
 Enter mass, moment of inertia and center of gravity for each moving link.
@@ -51,16 +57,21 @@ The results include an exploded free-body diagram, force and torque plots,
 shaking force and peak reactions. For conjugate cams, the analysis shows
 which cam carries the load and where the load transfers between them.
 
-A crank counterweight can be calculated for the rotating mass, then refined
-to reduce the whole mechanism's shaking force. The search shows its progress
-and compares the result with the original mechanism.
+The Balancing tab places counterweights on any moving links to minimize the
+shaking force, or checks counterweights you place yourself, and compares the
+shaking force, shaking moment, input torque and bearing loads before and
+after. A plain four-bar gets the classical loop-closure balance and a
+slider-crank its primary and secondary forces. You can trade shaking force
+against shaking moment, and split the crank's counterweight between two
+planes so that it adds no rocking couple.
 
 ### Forward dynamics
 
 To calculate motion under applied loads, choose **Apply torque/force** on
 the Drive step. The input effort can be zero, constant, a DC motor law, a
-speed controller, or a table over time or input angle. Point loads and
-couples can follow their own tables, such as a gas force on a piston.
+speed controller, a harmonic (a mean plus a sinusoid), or a table over time
+or input angle. Point loads and couples can follow their own tables, such as
+a gas force on a piston.
 
 Press **Simulate** to calculate a run. The results include:
 
@@ -79,9 +90,14 @@ speed fluctuation, then checked in a simulation. Energy balance provides a
 check on the run; convergence should be checked with a smaller step or
 tighter tolerance.
 
+The **Vibration** results tab linearizes the mechanism about its rest
+position, for small motions. It reports the natural frequency, damping
+ratio and damped period, and the steady response to a harmonic effort.
+**Release and simulate** checks the linear period against a simulated run.
+
 Set the drawing's length unit to m, cm, mm, in or ft. Mass is in kg, inertia
-in kg·m², force in N and linear spring stiffness in N/m. If no length unit
-is set, force analysis assumes one drawing unit is one metre.
+in kg·m², force in N, torque in N·m and linear spring stiffness in N/m. If no
+length unit is set, force analysis assumes one drawing unit is one metre.
 
 ## Synthesis
 
@@ -148,6 +164,22 @@ generation. While a cam is redesigned, its other followers and conjugate cam
 are shown as references. Profile CSV includes the conjugate profile when
 present.
 
+### Follower dynamics
+
+To model the follower's vibration, tick **Model the follower's elasticity**
+in the Profiler. The follower becomes a mass on an elastic follower train,
+held to the cam by a preloaded return spring, with damping.
+
+The **Follower dynamics** tab shows each result beside the rigid follower's:
+
+- Peak acceleration, contact force and the preload needed to keep contact.
+- The vibration left after each rise and fall, and where it settles.
+- Where the follower leaves the cam, and the speed at which it first jumps.
+
+The **Follower** charts compare the commanded and actual motion and the
+contact force. The **Spectrum** chart compares the motion laws by the
+vibration one move leaves. Problem 10 is a worked example.
+
 ## Gear design
 
 Gears supports external, internal and rack involute meshes. Choose 20°, 25°
@@ -201,7 +233,7 @@ The Analyzer has five steps:
 | --- | --- |
 | `.kinemech` | Mechanism geometry, roles, drive and simulation settings, dimensions, units, calibration and an embedded background image. |
 | `.kinepath` | Path points, optional crank angles and closure information. Drawn paths retain their editable spline points. |
-| `.kinemotion` | Follower displacement and derivatives against cam angle, with closure and translation or rotation information. |
+| `.kinemotion` | Follower displacement and derivatives against cam angle, with closure and translation or rotation information. A Profiler export also carries the cam design and its follower dynamics settings. |
 | `.kinegears` | Gear pairs or trains, tooth systems, profile shifts and known speeds. |
 
 Older mechanism and gear documents remain readable. A saved simulation
@@ -214,9 +246,19 @@ is locked to prevent competing writes. If the browser blocks storage, the
 app reports that autosave is unavailable; save to a file before closing.
 
 Plots and simulation runs export as CSV. The Profiler exports profile
-coordinates, and Gears exports geometry as CSV and SVG. The Analyzer,
+coordinates and, with the follower modeled, its response and the vibration
+spectrum. Gears exports geometry as CSV and SVG. The Analyzer,
 Synthesizer and Profiler also export animated GIFs. Analyzer GIFs can include
 the velocity and acceleration polygon panel.
+
+## Feedback
+
+To report a problem or request a feature, choose **Send feedback** in any
+tool's "···" menu. The dialog shows everything it will send before you press
+**Send**: your description, an optional email for a reply, the tool and
+version, and your browser and screen size. You can attach the design you
+have open; a traced reference image is always left out. If a tool crashes,
+its error screen offers **Report this crash**.
 
 ## License
 
@@ -226,4 +268,4 @@ KineMech is released under the [MIT License](LICENSE).
 
 If you use KineMech in research or teaching material, please cite its Zenodo
 DOI: [10.5281/zenodo.21843046](https://doi.org/10.5281/zenodo.21843046).
-[CITATION.cff](CITATION.cff) contains the citation details for version 4.5.0.
+[CITATION.cff](CITATION.cff) contains the citation details for version 5.0.0.
