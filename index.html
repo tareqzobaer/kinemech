@@ -227,6 +227,42 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
   html[data-theme=dark] input[type=number]{color-scheme:dark}
   html[data-theme=dark] input:focus,html[data-theme=dark] select:focus{border-color:#5be7ab}
 
+  html select{-webkit-appearance:none;appearance:none;padding-right:26px;background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%277%27 viewBox=%270 0 12 7%27%3E%3Cpath d=%27M1 1l5 5 5-5%27 fill=%27none%27 stroke=%27%23666%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;background-size:12px 7px}
+  html[data-theme=dark] select{background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%277%27 viewBox=%270 0 12 7%27%3E%3Cpath d=%27M1 1l5 5 5-5%27 fill=%27none%27 stroke=%27%23a0a8b8%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;background-size:12px 7px}
+  html select{padding-right:26px!important}
+
+  input[type=checkbox]{-webkit-appearance:none;appearance:none;flex-shrink:0;box-sizing:border-box;width:15px;height:15px;margin:0;border:1.5px solid #8a94a8;border-radius:3px;background:#fff center/100% 100% no-repeat;cursor:pointer;vertical-align:middle}
+  input[type=checkbox]:checked{background-color:#2f9e6e;border-color:#2f9e6e;background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 14 14%27%3E%3Cpath d=%27M3 7.4l2.8 2.8L11 4.4%27 fill=%27none%27 stroke=%27white%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E")}
+  input[type=checkbox]:disabled{opacity:.45;cursor:default}
+  input[type=checkbox]:focus-visible{outline:2px solid #2f9e6e;outline-offset:2px}
+  html[data-theme=dark] input[type=checkbox]{background-color:#10141f;border-color:#4a5568}
+  html[data-theme=dark] input[type=checkbox]:checked{background-color:#2f9e6e;border-color:#2f9e6e}
+  input[type=text],textarea{-webkit-appearance:none}
+
+  summary{list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"";display:inline-block;width:.42em;height:.42em;margin-right:.65em;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .12s;vertical-align:.08em}
+  details[open]>summary::before{transform:rotate(45deg);vertical-align:.18em}
+
+  html .km-dialog-scrim {
+    position: fixed; inset: 0; z-index: 2147483400; display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(10, 14, 22, 0.55); touch-action: none;
+  }
+  html .km-dialog {
+    width: 100%; max-width: 440px; box-sizing: border-box; padding: 22px 22px 18px;
+    background: #f5f7fa; color: #1a2236; border: 1px solid #dde3ee; border-radius: 10px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); text-align: left;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace, sans-serif;
+  }
+  html[data-theme=dark] .km-dialog { background: #0e1322; color: #e6ebf5; border-color: #283246; }
+  html .km-dialog h2 { margin: 0 0 10px; font: 800 16px ui-monospace, monospace, sans-serif; letter-spacing: 0.6px; }
+  html .km-dialog p { margin: 0; font-size: 12.5px; line-height: 1.5; color: #5a6882; }
+  html[data-theme=dark] .km-dialog p { color: #7c8aa8; }
+  html .km-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  html .km-dialog-actions .btn { min-width: 96px; }
+
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+
   html[data-theme=dark] .btn:focus-visible,
   html[data-theme=dark] button:focus-visible,
   html[data-theme=dark] .chart-svg:focus-visible,
@@ -5436,16 +5472,16 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const hx = Math.sin(ang), hy = Math.cos(ang);
     const dirs = [[ux, uy, 16], [-ux, -uy, 16], [-hx, -hy, 11]];
     if (!ground) dirs.push([hx, hy, 11]);
-    const leaving = [];
+    const leaving2 = [];
     for (const [qx, qy] of ends) {
       const dx = qx - bx, dy = qy - by, d = Math.hypot(dx, dy);
-      if (d > 1) leaving.push([dx / d, dy / d]);
+      if (d > 1) leaving2.push([dx / d, dy / d]);
     }
     return dirs.map(([dx, dy, ext]) => {
       const off = ext + BADGE_R + 3;
       const x = bx + dx * off, y = by + dy * off;
       let clash = 0;
-      for (const [lx, ly] of leaving) clash = Math.max(clash, dx * lx + dy * ly);
+      for (const [lx, ly] of leaving2) clash = Math.max(clash, dx * lx + dy * ly);
       if (bars.some(([a, b]) => segDist(x, y, a[0], a[1], b[0], b[1]) < BADGE_R + 4)) clash = 1;
       return { x, y, clash, score: clash + 0.3 * Math.max(0, (dx - dy) * Math.SQRT1_2) };
     });
@@ -9050,6 +9086,274 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     return moving ? { fixed: FRAME, moving: moving.id } : null;
   }
 
+  var dlg = null;
+  var dialogState = () => dlg;
+  function closeDialog() {
+    if (!dlg) return;
+    const { el, opener } = dlg;
+    dlg = null;
+    el.remove();
+    if (opener && opener.tagName === "BUTTON" && opener.isConnected) opener.focus({ preventScroll: true });
+  }
+  function showDialog(o) {
+    closeDialog();
+    const opener = document.activeElement;
+    if (opener && opener.blur) opener.blur();
+    const scrim = document.createElement("div");
+    scrim.className = "km-dialog-scrim";
+    const box = scrim.appendChild(document.createElement("div"));
+    box.className = "km-dialog";
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-modal", "true");
+    box.setAttribute("aria-labelledby", "km-dialog-title");
+    box.setAttribute("aria-describedby", "km-dialog-body");
+    const h = box.appendChild(document.createElement("h2"));
+    h.id = "km-dialog-title";
+    h.textContent = o.title;
+    const p = box.appendChild(document.createElement("p"));
+    p.id = "km-dialog-body";
+    p.textContent = o.body;
+    const row2 = box.appendChild(document.createElement("div"));
+    row2.className = "km-dialog-actions";
+    const buttons = [];
+    let main = null;
+    for (const b of o.buttons) {
+      const el = row2.appendChild(document.createElement("button"));
+      el.type = "button";
+      el.className = "btn" + (b.primary ? " pri" : "");
+      el.textContent = b.label;
+      el.addEventListener("click", () => {
+        closeDialog();
+        if (b.run) b.run();
+      });
+      buttons.push(el);
+      if (b.primary) main = el;
+    }
+    scrim.addEventListener("mousedown", (e) => {
+      if (!e.target.closest("button")) e.preventDefault();
+    });
+    scrim.addEventListener("click", (e) => {
+      if (e.target === scrim && o.onBack) o.onBack();
+    });
+    document.body.appendChild(scrim);
+    dlg = { el: scrim, buttons, main: main || buttons[0], kind: o.kind, owner: o.owner, onBack: o.onBack, opener };
+    if (dlg.main) dlg.main.focus({ preventScroll: true });
+  }
+  document.addEventListener("keydown", (e) => {
+    if (!dlg) return;
+    e.stopImmediatePropagation();
+    const { buttons, main, onBack } = dlg;
+    const at = buttons.indexOf(document.activeElement);
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const n2 = buttons.length;
+      const next = at < 0 ? e.shiftKey ? n2 - 1 : 0 : (at + (e.shiftKey ? n2 - 1 : 1)) % n2;
+      if (buttons[next]) buttons[next].focus({ preventScroll: true });
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      if (onBack) onBack();
+    } else if (at < 0) {
+      e.preventDefault();
+      if (main) main.focus({ preventScroll: true });
+    }
+  }, true);
+  var TOOL_NAMES = { ANALYZER: "Analyzer", SYNTHESIZER: "Synthesizer", PROFILER: "Profiler", GEARS: "Gears" };
+  function toolNameOf(el) {
+    const pane = el && el.closest(".view-fade");
+    const header = pane && pane.querySelector("header");
+    const m = header && /KINEMECH\.(ANALYZER|SYNTHESIZER|PROFILER|GEARS)/.exec(header.textContent);
+    return m ? TOOL_NAMES[m[1]] : "";
+  }
+  function paneShowing(el) {
+    const pane = el && el.closest(".view-fade");
+    return !pane || pane.getClientRects().length > 0;
+  }
+  var guards = new Map();
+  var leaving = false;
+  var addListener = window.addEventListener;
+  var removeListener = window.removeEventListener;
+  window.addEventListener = function(type, fn, ...rest) {
+    if (type !== "beforeunload" || typeof fn !== "function") return addListener.call(this || window, type, fn, ...rest);
+    const wrapped = guards.get(fn) || function(e) {
+      if (!leaving) return fn.call(this, e);
+    };
+    guards.set(fn, wrapped);
+    return addListener.call(this || window, type, wrapped, ...rest);
+  };
+  window.removeEventListener = function(type, fn, ...rest) {
+    if (type !== "beforeunload" || !guards.has(fn)) return removeListener.call(this || window, type, fn, ...rest);
+    const wrapped = guards.get(fn);
+    guards.delete(fn);
+    return removeListener.call(this || window, type, wrapped, ...rest);
+  };
+  function wouldWarn() {
+    let warn = false;
+    guards.forEach((wrapped, fn) => {
+      const e = { type: "beforeunload", returnValue: void 0, preventDefault() {
+        warn = true;
+      } };
+      try {
+        if (fn.call(window, e) != null) warn = true;
+      } catch (err) {
+      }
+      if (e.returnValue !== void 0) warn = true;
+    });
+    return warn;
+  }
+  document.addEventListener("click", (e) => {
+    const home = e.target instanceof Element && e.target.closest('button[aria-label^="Home"]');
+    if (!home || !e.isTrusted || !wouldWarn()) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    showDialog({
+      kind: "leave",
+      title: "Leave this design?",
+      body: "Your changes are not saved to a file. KineMech offers them back the next time it opens, unless you start a new design first.",
+      buttons: [{ label: "Stay" }, { label: "Leave", primary: true, run() {
+        leaving = true;
+        home.click();
+      } }],
+      onBack: closeDialog
+    });
+  }, true);
+  window.__kmDialog = dialogState;
+
+  // ============================================================================
+  //  TAB LOCK
+  // ============================================================================
+  var HEARTBEAT_MS = 2e3;
+  var STALE_MS = HEARTBEAT_MS * 3;
+  var tabId = (() => {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+  })();
+  var keyFor = (scope) => `${scope}:tablock`;
+  var readLock = (scope) => {
+    const raw = localStorage.getItem(keyFor(scope));
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  };
+  var writeLock = (scope) => {
+    localStorage.setItem(keyFor(scope), JSON.stringify({ id: tabId, ts: Date.now() }));
+  };
+  var clearLock = (scope) => {
+    try {
+      const cur = readLock(scope);
+      if (cur && cur.id === tabId) localStorage.removeItem(keyFor(scope));
+    } catch {
+    }
+  };
+  var locks = new Map();
+  var whenFirstVisible = (fn) => {
+    if (document.visibilityState !== "hidden") {
+      fn();
+      return;
+    }
+    const onVisible = () => {
+      if (document.visibilityState === "hidden") return;
+      document.removeEventListener("visibilitychange", onVisible);
+      fn();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+  };
+  var notify = (scope) => {
+    const l = locks.get(scope);
+    if (l) l.listeners.forEach((fn) => fn(l.isOwner));
+  };
+  var storageFailed = (scope) => {
+    Object.assign(locks.get(scope), { isOwner: false, storageUnavailable: true });
+    notify(scope);
+  };
+  var tryClaim = (scope) => {
+    const l = locks.get(scope);
+    const attempt = ++l.attempt;
+    try {
+      const cur = readLock(scope);
+      l.storageUnavailable = false;
+      const freeOrStale = !cur || Date.now() - cur.ts > STALE_MS || cur.id === tabId;
+      if (!freeOrStale) {
+        l.isOwner = false;
+        l.contended = true;
+        notify(scope);
+        return;
+      }
+      writeLock(scope);
+    } catch {
+      storageFailed(scope);
+      return;
+    }
+    setTimeout(() => {
+      if (attempt !== l.attempt) return;
+      try {
+        const after = readLock(scope);
+        l.isOwner = !!after && after.id === tabId;
+        l.contended = true;
+        l.storageUnavailable = false;
+        notify(scope);
+      } catch {
+        storageFailed(scope);
+      }
+    }, 60 + Math.random() * 60);
+  };
+  var initTabLock = (scope) => {
+    if (locks.has(scope)) return;
+    const l = { isOwner: false, contended: false, storageUnavailable: false, attempt: 0, listeners: new Set() };
+    locks.set(scope, l);
+    whenFirstVisible(() => {
+      tryClaim(scope);
+      setInterval(() => {
+        if (l.isOwner) {
+          try {
+            writeLock(scope);
+          } catch {
+            ++l.attempt;
+            storageFailed(scope);
+          }
+        } else tryClaim(scope);
+      }, HEARTBEAT_MS);
+      window.addEventListener("storage", (e) => {
+        if (e.key === keyFor(scope)) tryClaim(scope);
+      });
+      window.addEventListener("pagehide", () => clearLock(scope));
+    });
+  };
+  var isTabOwner = (scope) => locks.get(scope)?.isOwner ?? true;
+  var isTabLocked = (scope) => {
+    const l = locks.get(scope);
+    return !!l && l.contended && !l.isOwner && !l.storageUnavailable;
+  };
+  var isAnyTabLocked = () => [...locks.keys()].some(isTabLocked);
+  var isTabStorageUnavailable = (scope) => !!locks.get(scope)?.storageUnavailable;
+  var claimTab = (scope) => {
+    const l = locks.get(scope);
+    if (!l) return;
+    ++l.attempt;
+    try {
+      writeLock(scope);
+      Object.assign(l, { isOwner: true, contended: true, storageUnavailable: false });
+      notify(scope);
+    } catch {
+      storageFailed(scope);
+    }
+  };
+  var subscribeTabLock = (scope, fn) => {
+    const l = locks.get(scope);
+    if (!l) {
+      fn(true);
+      return () => {
+      };
+    }
+    l.listeners.add(fn);
+    fn(l.isOwner);
+    return () => l.listeners.delete(fn);
+  };
+
   var sub2 = (s) => React.createElement("sub", { style: { fontSize: "0.72em", lineHeight: 0 } }, s);
   var sup = (s) => React.createElement("sup", { style: { fontSize: "0.72em", lineHeight: 0 } }, s);
   var subsup = (b, p) => React.createElement("span", { style: { display: "inline-flex", flexDirection: "column", verticalAlign: "0.5em", fontSize: "0.72em", lineHeight: 1, marginLeft: 1 } }, React.createElement("span", null, p), React.createElement("span", null, b));
@@ -9075,15 +9379,41 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const btn = { padding: "6px 9px", display: "inline-flex", alignItems: "center", flex: "0 0 auto" };
     return React.createElement(React.Fragment, null, React.createElement("button", { type: "button", className: "btn", style: btn, disabled: !canUndo, title: "Undo (Ctrl+Z)", "aria-label": "Undo", onClick: undo }, glyph(false)), React.createElement("button", { type: "button", className: "btn", style: btn, disabled: !canRedo, title: "Redo (Ctrl+Y)", "aria-label": "Redo", onClick: redo }, glyph(true)));
   }
-  function RecoveryOffer({ T, summary, onRestore, onDiscard }) {
-    return React.createElement("div", { style: {
-      ...makeStyles(T).nextAction,
-      flexDirection: "column",
-      alignItems: "stretch",
-      gap: 8,
-      borderLeftColor: T.accentBlue,
-      background: T.accentBlue + "16"
-    } }, React.createElement("span", { style: { color: T.text } }, "Unsaved design from your last session (", summary, ")."), React.createElement("div", { style: { display: "flex", gap: 6 } }, React.createElement("button", { className: "btn pri", style: { flex: 1, padding: "5px 9px", fontSize: 11 }, onClick: onRestore }, "Restore"), React.createElement("button", { className: "btn", style: { padding: "5px 9px", fontSize: 11 }, onClick: onDiscard }, "Discard")));
+  function RecoveryOffer({ summary, onRestore, onDiscard }) {
+    const anchor = useRef(null);
+    const latest = useRef({});
+    latest.current = { summary, onRestore, onDiscard };
+    useEffect(() => {
+      const owner = anchor.current;
+      const check = () => {
+        const open2 = dialogState();
+        const showing = paneShowing(owner) && !isAnyTabLocked();
+        if (open2 && open2.owner === owner) {
+          if (!showing) closeDialog();
+          return;
+        }
+        if (open2 || !showing) return;
+        const tool = toolNameOf(owner), cur = latest.current;
+        showDialog({
+          kind: "restore",
+          owner,
+          title: "Restore your last design?",
+          body: `Unsaved ${tool ? tool + " " : ""}design from your last session (${cur.summary}).`,
+          buttons: [
+            { label: "Discard", run: () => latest.current.onDiscard() },
+            { label: "Restore", primary: true, run: () => latest.current.onRestore() }
+          ]
+        });
+      };
+      check();
+      const id = setInterval(check, 250);
+      return () => {
+        clearInterval(id);
+        const open2 = dialogState();
+        if (open2 && open2.owner === owner) closeDialog();
+      };
+    }, []);
+    return React.createElement("span", { ref: anchor, hidden: true });
   }
   function OriginStrip({ T, from, detail, onDismiss }) {
     return React.createElement("div", { role: "status", style: {
@@ -12774,141 +13104,6 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 4e3);
-  };
-
-  // ============================================================================
-  //  TAB LOCK
-  // ============================================================================
-  var HEARTBEAT_MS = 2e3;
-  var STALE_MS = HEARTBEAT_MS * 3;
-  var tabId = (() => {
-    try {
-      return crypto.randomUUID();
-    } catch {
-      return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    }
-  })();
-  var keyFor = (scope) => `${scope}:tablock`;
-  var readLock = (scope) => {
-    const raw = localStorage.getItem(keyFor(scope));
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
-  };
-  var writeLock = (scope) => {
-    localStorage.setItem(keyFor(scope), JSON.stringify({ id: tabId, ts: Date.now() }));
-  };
-  var clearLock = (scope) => {
-    try {
-      const cur = readLock(scope);
-      if (cur && cur.id === tabId) localStorage.removeItem(keyFor(scope));
-    } catch {
-    }
-  };
-  var locks = new Map();
-  var whenFirstVisible = (fn) => {
-    if (document.visibilityState !== "hidden") {
-      fn();
-      return;
-    }
-    const onVisible = () => {
-      if (document.visibilityState === "hidden") return;
-      document.removeEventListener("visibilitychange", onVisible);
-      fn();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-  };
-  var notify = (scope) => {
-    const l = locks.get(scope);
-    if (l) l.listeners.forEach((fn) => fn(l.isOwner));
-  };
-  var storageFailed = (scope) => {
-    Object.assign(locks.get(scope), { isOwner: false, storageUnavailable: true });
-    notify(scope);
-  };
-  var tryClaim = (scope) => {
-    const l = locks.get(scope);
-    const attempt = ++l.attempt;
-    try {
-      const cur = readLock(scope);
-      l.storageUnavailable = false;
-      const freeOrStale = !cur || Date.now() - cur.ts > STALE_MS || cur.id === tabId;
-      if (!freeOrStale) {
-        l.isOwner = false;
-        l.contended = true;
-        notify(scope);
-        return;
-      }
-      writeLock(scope);
-    } catch {
-      storageFailed(scope);
-      return;
-    }
-    setTimeout(() => {
-      if (attempt !== l.attempt) return;
-      try {
-        const after = readLock(scope);
-        l.isOwner = !!after && after.id === tabId;
-        l.contended = true;
-        l.storageUnavailable = false;
-        notify(scope);
-      } catch {
-        storageFailed(scope);
-      }
-    }, 60 + Math.random() * 60);
-  };
-  var initTabLock = (scope) => {
-    if (locks.has(scope)) return;
-    const l = { isOwner: false, contended: false, storageUnavailable: false, attempt: 0, listeners: new Set() };
-    locks.set(scope, l);
-    whenFirstVisible(() => {
-      tryClaim(scope);
-      setInterval(() => {
-        if (l.isOwner) {
-          try {
-            writeLock(scope);
-          } catch {
-            ++l.attempt;
-            storageFailed(scope);
-          }
-        } else tryClaim(scope);
-      }, HEARTBEAT_MS);
-      window.addEventListener("storage", (e) => {
-        if (e.key === keyFor(scope)) tryClaim(scope);
-      });
-      window.addEventListener("pagehide", () => clearLock(scope));
-    });
-  };
-  var isTabOwner = (scope) => locks.get(scope)?.isOwner ?? true;
-  var isTabLocked = (scope) => {
-    const l = locks.get(scope);
-    return !!l && l.contended && !l.isOwner && !l.storageUnavailable;
-  };
-  var isTabStorageUnavailable = (scope) => !!locks.get(scope)?.storageUnavailable;
-  var claimTab = (scope) => {
-    const l = locks.get(scope);
-    if (!l) return;
-    ++l.attempt;
-    try {
-      writeLock(scope);
-      Object.assign(l, { isOwner: true, contended: true, storageUnavailable: false });
-      notify(scope);
-    } catch {
-      storageFailed(scope);
-    }
-  };
-  var subscribeTabLock = (scope, fn) => {
-    const l = locks.get(scope);
-    if (!l) {
-      fn(true);
-      return () => {
-      };
-    }
-    l.listeners.add(fn);
-    fn(l.isOwner);
-    return () => l.listeners.delete(fn);
   };
 
   // ============================================================================
@@ -17613,6 +17808,21 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     if (extra.some((id) => moving.some((lk) => lk !== coupler && lk.joints.includes(id)))) return null;
     return { O2: grounded[0].id, A, B, O4: grounded[1].id, side2, coupler, side4 };
   };
+  var DYNAMICS_FIELDS = new Set([
+    "loads",
+    "mass",
+    "Icg",
+    "cgU",
+    "cgV",
+    "appliedT",
+    "appliedTLaw",
+    "cwMass",
+    "cwU",
+    "cwV",
+    "flywheelI",
+    "label",
+    "grooved"
+  ]);
   function App({ dark, setDark, onSynthesize = null, onCam = null, onGears = null, onDesignGears = null, onOpenGearsFile = null, onSendPath = null, onSendCamProgram = null, onDesignCam = null, onOpenCamFile = null, onClose = null, backName = "Synthesizer", incoming = null, active = true }) {
     const narrow = useMedia("(max-width: 900px), (max-height: 500px)");
     const compact = useMedia("(max-width: 640px)");
@@ -23662,8 +23872,10 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const snapshotRef = useRef(snapshot);
     snapshotRef.current = snapshot;
     const loadedNotEditedRef = useRef(false);
+    const keepPoseRef = useRef(false);
     const applySnapshot = (data, landOn = "solve") => {
       loadedNotEditedRef.current = true;
+      keepPoseRef.current = true;
       lastGoodSolutionRef.current = null;
       fitBoxRef.current = null;
       const js = normalizeMounts(data.joints || []);
@@ -23844,6 +24056,26 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       }, 800);
       return () => clearTimeout(id);
     }, [...docDeps, recovery]);
+    const geometryKey = useMemo(() => JSON.stringify([
+      joints.map((j) => Object.fromEntries(Object.entries(j).filter(([k]) => !DYNAMICS_FIELDS.has(k)))),
+      links.map((l) => [l.id, l.joints]),
+      groundLink,
+      crankLink,
+      driverKind,
+      driverJoint
+    ]), [joints, links, groundLink, crankLink, driverKind, driverJoint]);
+    const geometryKeyRef = useRef(null);
+    useEffect(() => {
+      const prev = geometryKeyRef.current;
+      geometryKeyRef.current = geometryKey;
+      if (prev !== null && prev !== geometryKey && !keepPoseRef.current) {
+        setTheta2(0);
+        setS2(0);
+      }
+    }, [geometryKey]);
+    useEffect(() => {
+      keepPoseRef.current = false;
+    });
     useEffect(() => {
       if (!dirty || !joints.length) return;
       const onBeforeUnload = (e) => {
@@ -24576,7 +24808,19 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         value: driveMode,
         onChange: setDriveMode
       }
-    ), !effortMode && (driverKind === "rotation" ? React.createElement(React.Fragment, null, React.createElement(P, null, "Set crank angular velocity \u03C9\u2082 and acceleration \u03B1\u2082 for the vector-loop velocity and acceleration solution."), React.createElement(Field, { label: "\u03C9\u2082 (rad/s)", v: w2, set: (x) => setW2(x) }), React.createElement(Field, { label: "\u03B1\u2082 (rad/s\xB2)", v: al2, set: (x) => setAl2(x) }), crankLink && React.createElement("div", { style: { ...S.hint, marginTop: 10 } }, "Crank = Link ", linkNumbers[crankLink], ". Positive \u03C9\u2082 is counter-clockwise.")) : React.createElement(React.Fragment, null, React.createElement(P, null, "Set driven-slider velocity v\u2082 and acceleration a\u2082 for the vector-loop velocity and acceleration solution."), React.createElement(Field, { label: `v\u2082 (${unitLabel}/s)`, v: v2 * scaleFactor, set: (x) => setV2(x / (scaleFactor || 1)) }), React.createElement(Field, { label: `a\u2082 (${unitLabel}/s\xB2)`, v: a2 * scaleFactor, set: (x) => setA2(x / (scaleFactor || 1)) }), driverJoint && React.createElement("div", { style: { ...S.hint, marginTop: 10 } }, "Driven slider: Slider ", sliderNumbers[driverJoint] ?? "?", ". Positive v\u2082 follows the guide direction (axis\xB0 on Geometry)."))), effortMode && (() => {
+    ), !effortMode && (driverKind === "rotation" ? React.createElement(React.Fragment, null, React.createElement(P, null, "Set crank angular velocity \u03C9\u2082 and acceleration \u03B1\u2082 for the vector-loop velocity and acceleration solution."), React.createElement(Field, { label: "\u03C9\u2082 (rad/s)", v: w2, set: (x) => {
+      setW2(x);
+      setTheta2(0);
+    } }), React.createElement(Field, { label: "\u03B1\u2082 (rad/s\xB2)", v: al2, set: (x) => {
+      setAl2(x);
+      setTheta2(0);
+    } }), crankLink && React.createElement("div", { style: { ...S.hint, marginTop: 10 } }, "Crank = Link ", linkNumbers[crankLink], ". Positive \u03C9\u2082 is counter-clockwise.")) : React.createElement(React.Fragment, null, React.createElement(P, null, "Set driven-slider velocity v\u2082 and acceleration a\u2082 for the vector-loop velocity and acceleration solution."), React.createElement(Field, { label: `v\u2082 (${unitLabel}/s)`, v: v2 * scaleFactor, set: (x) => {
+      setV2(x / (scaleFactor || 1));
+      setS2(0);
+    } }), React.createElement(Field, { label: `a\u2082 (${unitLabel}/s\xB2)`, v: a2 * scaleFactor, set: (x) => {
+      setA2(x / (scaleFactor || 1));
+      setS2(0);
+    } }), driverJoint && React.createElement("div", { style: { ...S.hint, marginTop: 10 } }, "Driven slider: Slider ", sliderNumbers[driverJoint] ?? "?", ". Positive v\u2082 follows the guide direction (axis\xB0 on Geometry)."))), effortMode && (() => {
       const rot2 = driverKind === "rotation";
       const eff = rot2 ? "torque" : "force", effU = rot2 ? "N\xB7m" : "N";
       const rateU = rot2 ? "rad/s" : `${unitLabel}/s`;
@@ -24592,7 +24836,15 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           xLabel: effort.over === "time" ? "t (s)" : rot2 ? "\u03B8\u2082 (\xB0)" : `s\u2082 (${unitLabel})`,
           yLabel: `${eff} (${effU})`
         }
-      ), React.createElement("div", { style: { ...S.hint, marginTop: 6 } }, "Linear between rows, flat past the ends", effort.over === "input" && rot2 ? ", and a table from 0 to 360 repeats every turn" : "", ". Two rows at one ", effort.over === "time" ? "time" : "input", " make a step.")), effort.kind === "harmonic" && React.createElement(React.Fragment, null, React.createElement(Field, { label: `Mean ${eff} (${effU})`, v: effort.mean, set: (x) => setE({ mean: x }) }), React.createElement(Field, { label: `Amplitude (${effU})`, v: effort.amp, set: (x) => setE({ amp: x }) }), React.createElement(Field, { label: "\u03A9 (rad/s)", v: effort.omega, set: (x) => setE({ omega: x }) }), React.createElement("div", { style: { ...S.hint, marginTop: 4 } }, React.createElement(Formula2, { color: "inherit", lines: [`${rot2 ? "Torque" : "Force"} = mean + amplitude \xD7 sin(\u03A9t)`] }), "t is the time since the start of the run.", vibration?.ok && vibration.forcing ? React.createElement(React.Fragment, null, " ", React.createElement(HelpMathTerm, null, "\u03A9 = ", fmt2(vibration.forcing.ratio, 3), " \u03C9", sub2("n")), " (", React.createElement(HelpMathTerm, null, "\u03C9", sub2("n"), " = ", fmt2(vibration.wn, 4), " rad/s"), " at the static equilibrium).") : vibration?.ok ? React.createElement(React.Fragment, null, " ", React.createElement(HelpMathTerm, null, "\u03C9", sub2("n"), " = ", fmt2(vibration.wn, 4), " rad/s"), " at the static equilibrium.") : "")), React.createElement(Field, { label: `Start ${rot2 ? "\u03C9\u2082" : "v\u2082"} (${rateU})`, v: rot2 ? w2 : v2 * scaleFactor, set: (x) => rot2 ? setW2(x) : setV2(x / (scaleFactor || 1)) }), React.createElement("div", { style: { ...S.hint, marginTop: 4, marginBottom: 10 } }, "Starts from ", startAt, ", the pose on the Solve step."), React.createElement(Field, { label: "Duration (s)", v: simSettings.duration, set: (x) => setS({ duration: x }) }), React.createElement(Field, { label: "Step (ms)", v: simSettings.dt * 1e3, set: (x) => setS({ dt: x / 1e3 }) }), React.createElement("label", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "6px 0" } }, React.createElement("span", { style: { fontSize: 12.5, color: T.textSub } }, "Method"), React.createElement("select", { value: simSettings.method, onChange: (e) => setS({ method: e.target.value }), style: { width: 150 } }, React.createElement("option", { value: "rk4" }, "Fixed step"), React.createElement("option", { value: "dp45" }, "Adaptive"))), simSettings.method === "dp45" && React.createElement(Field, { label: "Tolerance", v: simSettings.tol, set: (x) => setS({ tol: x }) }), React.createElement("div", { style: { ...S.hint, marginTop: 4 } }, simSettings.method === "dp45" ? "Fifth-order adaptive integration estimates error and lands on every output time. The step above sets the maximum step and saved-sample interval." : "Fourth-order steps, shortened at load-table boundaries and when motion needs finer resolution.", joints.some((j) => j.type === "cam") && simSettings.method !== "dp45" ? " Cams solve slowly; the adaptive method is often faster here." : ""), React.createElement("label", { style: { display: "flex", alignItems: "flex-start", gap: 8, marginTop: 10, fontSize: 12, color: T.textSub, lineHeight: 1.4 } }, React.createElement("input", { type: "checkbox", checked: !!simSettings.through, onChange: (e) => setS({ through: e.target.checked }), style: { marginTop: 2 } }), React.createElement("span", null, "Carry on through input limits. At an input dead point, the run follows a link that keeps turning instead of stopping.")), React.createElement(
+      ), React.createElement("div", { style: { ...S.hint, marginTop: 6 } }, "Linear between rows, flat past the ends", effort.over === "input" && rot2 ? ", and a table from 0 to 360 repeats every turn" : "", ". Two rows at one ", effort.over === "time" ? "time" : "input", " make a step.")), effort.kind === "harmonic" && React.createElement(React.Fragment, null, React.createElement(Field, { label: `Mean ${eff} (${effU})`, v: effort.mean, set: (x) => setE({ mean: x }) }), React.createElement(Field, { label: `Amplitude (${effU})`, v: effort.amp, set: (x) => setE({ amp: x }) }), React.createElement(Field, { label: "\u03A9 (rad/s)", v: effort.omega, set: (x) => setE({ omega: x }) }), React.createElement("div", { style: { ...S.hint, marginTop: 4 } }, React.createElement(Formula2, { color: "inherit", lines: [`${rot2 ? "Torque" : "Force"} = mean + amplitude \xD7 sin(\u03A9t)`] }), "t is the time since the start of the run.", vibration?.ok && vibration.forcing ? React.createElement(React.Fragment, null, " ", React.createElement(HelpMathTerm, null, "\u03A9 = ", fmt2(vibration.forcing.ratio, 3), " \u03C9", sub2("n")), " (", React.createElement(HelpMathTerm, null, "\u03C9", sub2("n"), " = ", fmt2(vibration.wn, 4), " rad/s"), " at the static equilibrium).") : vibration?.ok ? React.createElement(React.Fragment, null, " ", React.createElement(HelpMathTerm, null, "\u03C9", sub2("n"), " = ", fmt2(vibration.wn, 4), " rad/s"), " at the static equilibrium.") : "")), React.createElement(Field, { label: `Start ${rot2 ? "\u03C9\u2082" : "v\u2082"} (${rateU})`, v: rot2 ? w2 : v2 * scaleFactor, set: (x) => {
+        if (rot2) {
+          setW2(x);
+          setTheta2(0);
+        } else {
+          setV2(x / (scaleFactor || 1));
+          setS2(0);
+        }
+      } }), React.createElement("div", { style: { ...S.hint, marginTop: 4, marginBottom: 10 } }, "Starts from ", startAt, ", the pose on the Solve step."), React.createElement(Field, { label: "Duration (s)", v: simSettings.duration, set: (x) => setS({ duration: x }) }), React.createElement(Field, { label: "Step (ms)", v: simSettings.dt * 1e3, set: (x) => setS({ dt: x / 1e3 }) }), React.createElement("label", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "6px 0" } }, React.createElement("span", { style: { fontSize: 12.5, color: T.textSub } }, "Method"), React.createElement("select", { value: simSettings.method, onChange: (e) => setS({ method: e.target.value }), style: { width: 150 } }, React.createElement("option", { value: "rk4" }, "Fixed step"), React.createElement("option", { value: "dp45" }, "Adaptive"))), simSettings.method === "dp45" && React.createElement(Field, { label: "Tolerance", v: simSettings.tol, set: (x) => setS({ tol: x }) }), React.createElement("div", { style: { ...S.hint, marginTop: 4 } }, simSettings.method === "dp45" ? "Fifth-order adaptive integration estimates error and lands on every output time. The step above sets the maximum step and saved-sample interval." : "Fourth-order steps, shortened at load-table boundaries and when motion needs finer resolution.", joints.some((j) => j.type === "cam") && simSettings.method !== "dp45" ? " Cams solve slowly; the adaptive method is often faster here." : ""), React.createElement("label", { style: { display: "flex", alignItems: "flex-start", gap: 8, marginTop: 10, fontSize: 12, color: T.textSub, lineHeight: 1.4 } }, React.createElement("input", { type: "checkbox", checked: !!simSettings.through, onChange: (e) => setS({ through: e.target.checked }), style: { marginTop: 2 } }), React.createElement("span", null, "Carry on through input limits. At an input dead point, the run follows a link that keeps turning instead of stopping.")), React.createElement(
         "button",
         {
           className: "btn pri",
@@ -26609,12 +26861,13 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
 /* .g-two-stage holds one column per planetary stage and leaves 48 px under them for the zoom box; each shaft connector runs between the centers of the two stages it joins (placed inline) */
 .g-two-stage{display:flex;flex:1;min-height:0;position:relative;padding-bottom:48px}.g-train-stage{display:flex;flex-direction:column;flex:1 1 0;min-width:0}.g-train-stage>span{font-size:10px;color:var(--sub);text-align:center}.g-stage-shaft{position:absolute;bottom:20px;left:25%;width:50%;border-top:2px dashed var(--blue);text-align:center;font-size:10px;color:var(--blue);padding-top:4px}
 
-.g-shifts{border:1px solid var(--soft);border-radius:4px;padding:8px;margin:12px 0;background:var(--paper)}.g-shifts legend{font-size:10.5px;color:var(--sub)}.g-shifts:disabled{opacity:.6}
+/* Grouped inputs (the profile shift box and the train cards below) sit on the row tint, as the Analyzer's load cards and the Synthesizer's posture card do; the page white made each box brighter than the fields inside it. The floated legend puts its title inside the box, like a card head */
+.g-shifts{border:1px solid var(--row-border);border-radius:4px;padding:8px;margin:12px 0;background:var(--row);min-width:0}.g-shifts legend{float:left;width:100%;padding:0;margin:0 0 8px;font-size:11px;color:var(--sub)}.g-shifts legend+*{clear:both}.g-shifts:disabled{opacity:.6}
 
 .gears-app{height:100vh;display:flex;flex-direction:column;overflow:hidden;background:var(--paper);color:var(--ink);font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace,sans-serif;color-scheme:light}.gears-app[data-dark=true]{color-scheme:dark}.gears-app *{box-sizing:border-box}.gears-app input{caret-color:var(--green)}.gears-app ::selection{background:var(--green);color:var(--paper)}
 .g-header{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid var(--rule);background:var(--panel);gap:14px;flex-shrink:0;line-height:normal}.gears-app .g-back{display:flex;align-items:center;gap:6px;padding:7px 9px;flex-shrink:0}.g-back span{font-size:11.5px}.g-brand{display:flex;align-items:center;gap:10px;flex:0 0 auto}.g-home{display:flex;border:0;background:none;padding:0;cursor:pointer}.g-wordmark{margin:0;font-size:15px;font-weight:700;letter-spacing:2px;color:var(--green);white-space:nowrap}.g-subtitle{font-size:11px;color:var(--sub);margin-top:3px;letter-spacing:.4px}.g-nav{display:flex;gap:6px;align-items:center;min-width:0;margin-left:auto}.g-nav .btn{font-size:11px;padding:6px 10px;white-space:nowrap}.g-tools{display:flex;gap:6px;align-items:center;flex:0 0 auto}.g-tools-divider{width:1px;height:22px;background:var(--rule)}.g-more{position:relative}.g-more>.btn{padding:7px 9px}.g-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:60;display:flex;flex-direction:column;gap:4px;padding:6px;min-width:190px;max-width:calc(100vw - 20px);max-height:calc(100vh - 100px);overflow:auto;background:var(--panel);border:1px solid var(--soft);border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,.25)}.g-menu .btn{width:100%}.g-menu-separator{height:1px;background:var(--soft);margin:5px 0}.g-menu-label{font-size:10px;letter-spacing:.4px;color:var(--muted);padding:0 4px 2px}.g-menu select{width:100%;font-size:11px}
 .g-layout{flex:1;min-height:0;display:grid;position:relative;grid-template-rows:minmax(0,1fr)}.g-sidebar,.g-result-panel{min-height:0;min-width:0;overflow-x:hidden;overflow-y:auto;background:var(--panel);position:relative}.g-sidebar{grid-column:1;border-right:1px solid var(--rule)}.g-result-panel{grid-column:3;border-left:1px solid var(--rule)}.g-panel-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:6px;min-height:27px}.g-panel-heading h2{font-size:13px;letter-spacing:.5px;font-weight:700;margin:0}.g-result-panel .g-panel-heading>span{font-size:10px;letter-spacing:1.2px;font-weight:700;color:var(--muted);text-transform:uppercase}.gears-app .g-panel-toggle{padding:4px 6px;line-height:0;flex-shrink:0;position:absolute;top:-4px;right:-4px}.g-panel-anchor{position:sticky;top:0;z-index:3;height:0}.g-sidebar[data-open=false] .g-panel-anchor,.g-result-panel[data-open=false] .g-panel-anchor{margin:0 -4px}.g-sidebar[data-open=false] .g-panel-toggle,.g-result-panel[data-open=false] .g-panel-toggle{top:0;right:auto;left:50%;transform:translateX(-50%);width:max-content}.g-sidebar[data-open=false] .g-panel-heading,.g-result-panel[data-open=false] .g-panel-heading{justify-content:center;margin-bottom:6px}.g-sidebar p{font-size:11.5px;color:var(--sub);margin:0 0 12px}.g-sidebar .g-intro{font-size:13px}.g-sidebar h3,.g-section-title{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--green);padding:0 2px 7px;margin:18px 0 8px;border-bottom:2px solid var(--green)}
-.g-field{display:block;margin-bottom:9px}.g-field>span{display:block;font-size:10.5px;font-weight:700;letter-spacing:.4px;color:var(--muted);margin-bottom:3px}.g-field input,.g-field select{width:100%;box-sizing:border-box}.g-inline{display:flex;gap:6px;margin:10px 0}.g-inline .btn{flex:1;font-size:11px;padding:5px 8px}.g-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub);padding:3px 0}.g-check input{margin:0;cursor:pointer}.g-note{font-size:11.5px!important;color:var(--muted)!important}.g-stage{border:1px solid var(--soft);border-radius:4px;padding:8px;margin:8px 0;background:var(--paper)}.g-stage-head{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--sub);margin-bottom:8px}.gears-app .xbtn{border:none;background:var(--row-border);color:var(--sub)}.g-example{width:100%;font-size:11px;margin:4px 0}.g-sidebar details{font-size:11px;margin-top:12px}.g-sidebar summary{cursor:pointer;color:var(--sub)}
+.g-field{display:block;margin-bottom:9px}.g-field>span{display:block;font-size:10.5px;font-weight:700;letter-spacing:.4px;color:var(--muted);margin-bottom:3px}.g-field input,.g-field select{width:100%;box-sizing:border-box}.g-inline{display:flex;gap:6px;margin:10px 0}.g-sidebar .btn+p{margin-top:8px}.g-inline .btn{flex:1;font-size:11px;padding:5px 8px}.g-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub);padding:3px 0}.g-check input{margin:0;cursor:pointer}.g-note{font-size:11.5px!important;color:var(--muted)!important}.g-stage{border:1px solid var(--row-border);border-radius:4px;padding:8px;margin:8px 0;background:var(--row)}.g-stage-head{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--sub);margin-bottom:8px}.gears-app .xbtn{border:none;background:var(--row-border);color:var(--sub)}.g-example{width:100%;font-size:11px;margin:4px 0}.g-sidebar details{font-size:11px;margin-top:12px}.g-sidebar summary{cursor:pointer;color:var(--sub)}
 /* .g-svg below is not selectable: drag-panning selected its labels (painted as a green ::selection box), and with caret browsing on, a click put a caret in them that scales with the zoom into a large dark block */
 .g-workspace{grid-column:2;display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;background:var(--canvas);position:relative}.g-drawing{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px}.g-svg{display:block;width:100%;flex:1;min-height:0;overflow:hidden;-webkit-user-select:none;user-select:none}.g-svg text{font-family:ui-monospace,monospace,sans-serif;fill:var(--sub)}.g-canvas-tag{position:absolute;top:10px;left:12px;max-width:calc(100% - 24px);font-size:11px;font-weight:600;letter-spacing:.5px;color:var(--sub);background:var(--panel);padding:3px 8px;border-radius:4px;pointer-events:none}.g-canvas-space{height:36px;flex-shrink:0}.g-view-options{display:flex;justify-content:flex-end;align-items:center;gap:7px;padding:8px 12px;flex-shrink:0;font-size:10.5px;color:var(--sub)}.g-view-options label{display:flex;align-items:center;gap:7px;min-width:0}.g-view-options select{font-size:11px;padding:4px 6px;max-width:100%;width:auto}.g-legend{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;padding:7px 12px 12px;flex-shrink:0;color:var(--sub);font-size:10px}.g-legend span{display:flex;align-items:center;gap:6px}.g-swatch{width:14px;height:0;border-top:2px solid var(--green)}.g-swatch.dashed{border-top-style:dashed}.g-method-dock{flex:0 0 auto;max-height:40%;overflow:auto;border-top:1px solid var(--rule);background:var(--panel);padding:8px 12px 12px}.g-method-dock .g-section-title{margin:0 0 6px;font-size:10px;letter-spacing:1.2px}.g-method-dock .g-table{font-size:11px}.g-method-dock .g-table th,.g-method-dock .g-table td{padding:5px 7px}
 .g-results{font-size:11.5px}.g-summary{border:1px solid var(--soft);border-radius:4px;overflow:hidden}.g-metric{display:flex;align-items:baseline;justify-content:space-between;gap:5px;padding:7px 8px;border-bottom:1px solid var(--soft);background:var(--paper)}.g-metric:last-child{border-bottom:0}.g-metric>span{font-size:10.5px;color:var(--sub);flex:1;min-width:0}.g-metric strong{font-size:12px;color:var(--result);font-weight:600;font-variant-numeric:tabular-nums;text-align:right}.g-metric small{font-size:10px;color:var(--muted)}.g-columns{display:block}.g-results h2{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--green);margin:18px 0 8px;padding:0 2px 7px;border-bottom:2px solid var(--green)}.g-results p{font-size:11.5px;color:var(--muted);line-height:1.45;margin:8px 0}.g-table-wrap{overflow:auto;border:1px solid var(--soft);border-radius:4px}.g-table{width:100%;border-collapse:collapse;font-size:10.5px;font-variant-numeric:tabular-nums}.g-table th,.g-table td{padding:5px 6px;border-bottom:1px solid var(--soft);text-align:right;white-space:nowrap}.g-table thead th{font-size:9px;letter-spacing:.4px;font-weight:700;text-transform:uppercase;color:var(--muted);background:var(--row)}.g-table tbody th{font-size:10.5px;font-weight:400;color:var(--sub);text-align:left;white-space:normal;min-width:78px}.g-table thead th:first-child{text-align:left}.g-table tr:last-child>*{border-bottom:0}.g-table tr.total>*{font-weight:700;color:var(--result)}.g-table tr.active-row>*{background:var(--row);font-weight:700}.g-equation{padding:8px 10px;background:var(--row);border:1px solid var(--soft);border-radius:4px;margin:10px 0;font-size:11.5px;font-weight:400;line-height:1.45;color:var(--muted);overflow-x:auto;font-variant-numeric:tabular-nums}.g-eq-gap{height:6px}.g-math{white-space:nowrap;text-transform:none}.g-warning{color:var(--warn)!important;background:var(--row);padding:8px 10px;border:1px solid var(--soft);border-radius:4px;font-size:11px!important}.g-results details{font-size:11px;margin:12px 0}.g-results summary{cursor:pointer;color:var(--blue)}.g-results ol{padding-left:17px;color:var(--sub)}.g-results li{margin:6px 0}.g-error{margin:auto;padding:20px;max-width:500px;color:var(--warn)}.g-error h2{font-size:13px}.g-error p{font-size:11.5px}
@@ -31066,7 +31319,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         style: { position: "absolute", padding: "4px 6px", lineHeight: 0, ...leftOpen ? { top: -4, right: -4 } : { top: 0, left: "50%", transform: "translateX(-50%)", width: "max-content" } }
       },
       leftOpen ? React.createElement(PanelLeftCloseIcon2, null) : React.createElement(PanelLeftOpenIcon2, null)
-    )), React.createElement("div", { style: { display: "flex", alignItems: "center", minHeight: 27, marginBottom: leftOpen ? 12 : 6 } }, leftOpen && React.createElement("h2", { style: { ...S.stepTitle, marginBottom: 0 } }, "Cam profile synthesis")), leftOpen && recovery && React.createElement(
+    )), React.createElement("div", { style: { display: "flex", alignItems: "center", minHeight: 27, marginBottom: leftOpen ? 12 : 6 } }, leftOpen && React.createElement("h2", { style: { ...S.stepTitle, marginBottom: 0 } }, "Cam profile synthesis")), recovery && React.createElement(
       RecoveryOffer,
       {
         T,
