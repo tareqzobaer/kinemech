@@ -18610,6 +18610,20 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         job.cancel();
       };
     }, [simRun, runShown, runDataBusy, active]);
+    const thetaRange = useMemo(() => {
+      if (step3 !== "solve" && !(step3 === "drive" && driveMode === "effort" && effort.kind === "harmonic")) return null;
+      if (driverKind !== "rotation") return null;
+      if (joints.length < 3 || links.length < 2) return null;
+      if (joints.filter((j) => j.ground).length < 1 || !crankLink || !driverRef) return null;
+      const xs = joints.map((j) => j.x), ys = joints.map((j) => j.y);
+      const span = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) || 1;
+      const STEP = Math.PI / 36;
+      const MIN_STEP = STEP / 64;
+      const fwd = sweepDriverRange(joints, links, driverRef, STEP, MIN_STEP, span, TAU2, 1);
+      const back = sweepDriverRange(joints, links, driverRef, STEP, MIN_STEP, span, TAU2, -1);
+      if (fwd.full || back.full) return { full: true };
+      return { full: false, min: back.value, max: fwd.value, poseMin: back.pose, poseMax: fwd.pose, span, step: STEP, minStep: MIN_STEP };
+    }, [step3, joints, links, driverKind, crankLink, driverRef, driveMode, effort.kind]);
     const continuationRef = useRef(null);
     const limitsRef = useRef(null);
     const solution = useMemo(() => {
@@ -18628,18 +18642,20 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       const cache2 = continuationRef.current;
       const canWarm = cache2 && cache2.ok && cache2.joints === joints && cache2.links === links && cache2.driverKind === driverKind && cache2.crankLink === crankLink && cache2.driverJoint === driverJoint;
       const lim = limitsRef.current;
-      const limits = lim && lim.joints === joints && lim.links === links && lim.driverRef === ref ? lim.limits : null;
+      const limits = lim && lim.joints === joints && lim.links === links && lim.driverRef === ref ? lim.limits : thetaRange && !thetaRange.full ? thetaRange : null;
+      const inRangeTurn = (value) => driverKind === "rotation" && limits ? value + Math.round(((limits.min + limits.max) / 2 - value) / TAU2) * TAU2 : value;
+      const solveValue = inRangeTurn(targetValue);
       const trail = canWarm ? cache2.trail || [{ value: cache2.value, pos: cache2.pos }] : [];
-      const start = canWarm ? pickWarmStart(trail, targetValue, limits, driverKind === "rotation" ? TAU2 : null) : null;
-      const fromValue = start ? start.value : ref.home;
+      const start = canWarm ? pickWarmStart(trail, solveValue, limits, driverKind === "rotation" ? TAU2 : null) : null;
+      const fromValue = inRangeTurn(start ? start.value : ref.home);
       let warm = {};
       if (start) warm = start.pos;
       else joints.forEach((j) => {
         warm[j.id] = { x: j.x, y: j.y };
       });
       const nextTrail = canWarm ? [...trail] : [];
-      let deltaValue = targetValue - fromValue;
-      if (driverKind === "rotation") {
+      let deltaValue = solveValue - fromValue;
+      if (driverKind === "rotation" && !limits) {
         if (deltaValue > Math.PI) deltaValue -= TAU2;
         else if (deltaValue < -Math.PI) deltaValue += TAU2;
       }
@@ -18651,7 +18667,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         if (!sol.ok) return sol;
       }
       for (let s = 1; !simSample && s <= steps; s++) {
-        const value = targetValue - deltaValue * (1 - s / steps);
+        const value = solveValue - deltaValue * (1 - s / steps);
         sol = solveDriverStep(joints, links, ref, value, rate1, rate2, warm);
         if (!sol.ok) {
           continuationRef.current = { joints, links, driverKind, crankLink, driverJoint, ok: false };
@@ -18671,7 +18687,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         driverKind,
         crankLink,
         driverJoint,
-        value: targetValue,
+        value: solveValue,
         pos: sol.pos,
         ok: true,
         trail: nextTrail.slice(-CONTINUATION_TRAIL)
@@ -18741,7 +18757,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         const startJ = jmap.get(order[0]);
         startFixed = !!(startJ && startJ.ground && startJ.type !== "slider");
       }
-      const driveValue = simSample ? simSample.x : targetValue;
+      const driveValue = simSample ? simSample.x : solveValue;
       return {
         ok: true,
         recon: sol.pos,
@@ -18766,7 +18782,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         nUnknowns: sol.nUnknowns,
         refParent: buildRefParents(joints, links)
       };
-    }, [joints, links, driverKind, crankLink, driverJoint, driverRef, theta2, s2, w2, al2, v2, a2, simSample, simRun]);
+    }, [joints, links, driverKind, crankLink, driverJoint, driverRef, thetaRange, theta2, s2, w2, al2, v2, a2, simSample, simRun]);
     const lastGoodSolutionRef = useRef(null);
     if (solution.ok) lastGoodSolutionRef.current = solution;
     const camJoints = useMemo(() => joints.filter((j) => j.type === "cam"), [joints]);
@@ -18913,20 +18929,6 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     useEffect(() => {
       setPolyBuildStep((s) => Math.min(s, polyBuildMax));
     }, [polyBuildMax]);
-    const thetaRange = useMemo(() => {
-      if (step3 !== "solve") return null;
-      if (driverKind !== "rotation") return null;
-      if (joints.length < 3 || links.length < 2) return null;
-      if (joints.filter((j) => j.ground).length < 1 || !crankLink || !driverRef) return null;
-      const xs = joints.map((j) => j.x), ys = joints.map((j) => j.y);
-      const span = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) || 1;
-      const STEP = Math.PI / 36;
-      const MIN_STEP = STEP / 64;
-      const fwd = sweepDriverRange(joints, links, driverRef, STEP, MIN_STEP, span, TAU2, 1);
-      const back = sweepDriverRange(joints, links, driverRef, STEP, MIN_STEP, span, TAU2, -1);
-      if (fwd.full || back.full) return { full: true };
-      return { full: false, min: back.value, max: fwd.value, poseMin: back.pose, poseMax: fwd.pose, span, step: STEP, minStep: MIN_STEP };
-    }, [step3, joints, links, driverKind, crankLink, driverRef]);
     const sRange = useMemo(() => {
       if (step3 !== "solve") return null;
       if (driverKind !== "translation") return null;
@@ -18939,7 +18941,6 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       const back = sweepDriverRange(joints, links, driverRef, STEP, MIN_STEP, span, null, -1);
       return { min: back.value, max: fwd.value, poseMin: back.pose, poseMax: fwd.pose, span, step: STEP, minStep: MIN_STEP };
     }, [step3, joints, links, driverKind, driverJoint, driverRef]);
-    const theta2TrackBg = useMemo(() => thetaRange ? T.trackOk : void 0, [thetaRange, T]);
     const s2TrackBg = useMemo(() => sRange ? T.trackOk : void 0, [sRange, T]);
     const driveRange = driverKind === "rotation" ? thetaRange : sRange;
     const deadPoints = useMemo(() => {
@@ -18966,9 +18967,17 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     }, [driveRange, driverRef, joints, links, driverKind, crankLink, driverJoint]);
     limitsRef.current = deadPoints ? { joints, links, driverRef, limits: deadPoints } : null;
     const crankScrubRange = driverKind === "rotation" && thetaRange && !thetaRange.full ? deadPoints || thetaRange : null;
-    const crankScrubAngle = !crankScrubRange && Math.abs(theta2 - TAU2) < 64 * Number.EPSILON * TAU2 ? 360 : deg(theta2);
-    const crankScrubOffset = crankScrubRange ? theta2 + Math.round(((crankScrubRange.min + crankScrubRange.max) / 2 - theta2) / TAU2) * TAU2 : theta2;
-    const crankScrubValue = crankScrubRange && crankScrubRange.max > crankScrubRange.min ? Math.max(0, Math.min(3600, 3600 * (crankScrubOffset - crankScrubRange.min) / (crankScrubRange.max - crankScrubRange.min))) : crankScrubAngle * 10;
+    const driveStartReading = (value) => crankScrubRange ? value + Math.round(((crankScrubRange.min + crankScrubRange.max) / 2 - value) / TAU2) * TAU2 : value;
+    const driveStartValue = driveStartReading(driverKind === "rotation" ? theta2 : s2);
+    const driveStartAnchor = (seed) => {
+      if (!crankScrubRange || !seed?.pos) return seed;
+      const key = Number.isFinite(seed.xAct) ? "xAct" : Number.isFinite(seed.x) ? "x" : null;
+      if (!key) return seed;
+      const value = driveStartReading(seed[key]);
+      return value === seed[key] ? seed : { ...seed, [key]: value };
+    };
+    const crankScrubAngle = Math.abs(theta2 - TAU2) < 64 * Number.EPSILON * TAU2 ? 360 : deg(theta2);
+    const crankScrubValue = crankScrubAngle * 10;
     const setCrankPosition = (raw) => {
       if (!Number.isFinite(raw)) return;
       setPlaying(false);
@@ -18976,6 +18985,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       let value = raw;
       if (range) {
         value += Math.round(((range.min + range.max) / 2 - value) / TAU2) * TAU2;
+        const requested = value;
         value = Math.max(range.min, Math.min(range.max, value));
         const eps = 64 * Number.EPSILON * Math.max(1, Math.abs(range.min), Math.abs(range.max));
         const atMin = value <= range.min + eps, atMax = value >= range.max - eps;
@@ -18984,6 +18994,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
           const pos = atMin ? range.poseMin : range.poseMax;
           if (pos) continuationRef.current = { joints, links, driverKind, crankLink, driverJoint, value, pos, ok: true };
         }
+        if ((raw === 0 || raw === TAU2) && Math.abs(value - requested) <= eps) value = raw;
       }
       setTheta2(value);
     };
@@ -19004,6 +19015,15 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       }
       setS2(value);
     };
+    const theta2TrackBg = useMemo(() => {
+      if (!thetaRange) return void 0;
+      const ok = T.trackOk;
+      if (!crankScrubRange || crankScrubRange.max - crankScrubRange.min >= TAU2) return ok;
+      const dead = T.trackDead;
+      const p0 = wrap(crankScrubRange.min) / TAU2 * 100, p1 = wrap(crankScrubRange.max) / TAU2 * 100;
+      if (p0 <= p1) return `linear-gradient(to right, ${dead} 0%, ${dead} ${p0}%, ${ok} ${p0}%, ${ok} ${p1}%, ${dead} ${p1}%, ${dead} 100%)`;
+      return `linear-gradient(to right, ${ok} 0%, ${ok} ${p1}%, ${dead} ${p1}%, ${dead} ${p0}%, ${ok} ${p0}%, ${ok} 100%)`;
+    }, [thetaRange, crankScrubRange, T]);
     const cycleData = useMemo(() => {
       if (!showPlots || step3 !== "solve") return null;
       if (runShown) {
@@ -19910,8 +19930,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       runExportToken.current++;
       setRunExportBusy(false);
       const rot2 = driverKind === "rotation";
-      const x0 = rot2 ? theta2 : s2, xd0 = rot2 ? w2 : v2;
-      const warm = simStart || (continuationRef.current?.ok ? continuationRef.current.pos : null);
+      const x0 = driveStartValue, xd0 = rot2 ? w2 : v2;
+      const warm = driveStartAnchor(simStart || (continuationRef.current?.ok ? continuationRef.current.pos : null));
       const prep = prepareSimulation({ joints, links, elements, driverKind, crankLink, driverJoint, gravityOn, gravityMag, mu, scaleFactor, x0, warm });
       if (!prep.ok) {
         setSimRun({ ok: false, ...prep, inputs: simLiveRef.current });
@@ -19997,12 +20017,12 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
     const vibrationWanted = vibrationEligible && (step3 === "solve" && (resultsTab === "vibration" || showPlots && runShown && (plotTarget?.kind === "run" || plotTarget?.kind === "vib")) || step3 === "drive" && effort.kind === "harmonic");
     const vibration = useMemo(() => {
       if (!vibrationWanted) return null;
-      const x0 = driverKind === "rotation" ? theta2 : s2;
-      const warm = runShown ? simRun.samples[0] : simStart || (continuationRef.current?.ok ? continuationRef.current.pos : null);
+      const x0 = driveStartValue;
+      const warm = driveStartAnchor(runShown ? simRun.samples[0] : simStart || (continuationRef.current?.ok ? continuationRef.current.pos : null));
       const prep = prepareSimulation({ joints, links, elements, driverKind, crankLink, driverJoint, gravityOn, gravityMag, mu, scaleFactor, x0, warm });
       if (!prep.ok) return { ok: false, message: simRefusalMessage(prep, { joints }) };
       return vibrationAbout(prep.model, lawFromEffort(effort), x0, warm);
-    }, [vibrationWanted, joints, links, elements, driverKind, crankLink, driverJoint, gravityOn, gravityMag, mu, scaleFactor, effort, theta2, s2, runShown, simRun, simStart]);
+    }, [vibrationWanted, joints, links, elements, driverKind, crankLink, driverJoint, gravityOn, gravityMag, mu, scaleFactor, effort, theta2, s2, runShown, simRun, simStart, driveStartValue, crankScrubRange]);
     const vibrationRun = useMemo(() => runShown && vibration?.ok ? runAbout(simRun, vibration.x) : null, [runShown, simRun, vibration]);
     const [vibOffset, setVibOffset] = useState(null);
     const [vibOverlay, setVibOverlay] = useState(true);
@@ -20190,7 +20210,8 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         if (driverKind === "rotation") {
           setTheta2((p) => {
             if (!deadPoints) return wrap(p + w2 * speed * dt);
-            const { next, reversed } = pingPong(p, dirRef.current * w2 * speed * dt, deadPoints.min, deadPoints.max);
+            const value = p + Math.round(((deadPoints.min + deadPoints.max) / 2 - p) / TAU2) * TAU2;
+            const { next, reversed } = pingPong(value, dirRef.current * w2 * speed * dt, deadPoints.min, deadPoints.max);
             if (reversed) dirRef.current = -dirRef.current;
             return next;
           });
@@ -26061,7 +26082,7 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         onExportCsv: exportCsv,
         dynamicsEligible,
         driverKind,
-        driveValue: driverKind === "rotation" ? theta2 : s2,
+        driveValue: solution.ok ? solution.driveValue : driverKind === "rotation" ? theta2 : s2,
         inputHome,
         rate1: driverKind === "rotation" ? w2 : v2,
         rate2: driverKind === "rotation" ? al2 : a2,
@@ -26168,14 +26189,13 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         max: 3600,
         step: 1,
         value: crankScrubValue,
-        "aria-valuemin": crankScrubRange ? crankScrubRange.min * 180 / Math.PI : 0,
-        "aria-valuemax": crankScrubRange ? crankScrubRange.max * 180 / Math.PI : 360,
-        "aria-valuenow": crankScrubRange ? crankScrubOffset * 180 / Math.PI : crankScrubAngle,
+        "aria-valuemin": 0,
+        "aria-valuemax": 360,
+        "aria-valuenow": crankScrubAngle,
         "aria-label": "Crank angle \u03B8\u2082",
         "aria-valuetext": `${crankScrubAngle.toFixed(2)} degrees`,
         onChange: (e) => {
-          const t = parseFloat(e.target.value) / 3600;
-          setCrankPosition(crankScrubRange ? crankScrubRange.min + t * (crankScrubRange.max - crankScrubRange.min) : t * TAU2);
+          setCrankPosition(parseFloat(e.target.value) / 3600 * TAU2);
         },
         style: theta2TrackBg ? { flex: 1, minWidth: 40, background: theta2TrackBg } : { flex: 1, minWidth: 40 }
       }
@@ -37407,17 +37427,38 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
       });
       return { full: false, valid, N, segments };
     }, [mode, guidanceResult, pathActive, functionResult, sliderResult, dwellResult, guidanceMech, qrGeneric, qrMech, computeAnimConfig, home]);
-    const theta2TrackBg = theta2Range ? T.trackOk : void 0;
+    const theta2TrackBg = useMemo(() => {
+      if (!theta2Range) return void 0;
+      if (theta2Range.full) return T.trackOk;
+      const pct2 = (t) => Math.max(0, Math.min(100, t / TAU2 * 100));
+      const pieces = theta2Range.segments.flatMap((s) => s.max > TAU2 ? [[s.min, TAU2], [0, s.max - TAU2]] : [[s.min, s.max]]).sort((a, b) => a[0] - b[0]);
+      const ok = T.trackOk, dead = T.trackDead, stops = [];
+      for (const [a, b] of pieces) stops.push(`${dead} ${pct2(a)}%`, `${ok} ${pct2(a)}%`, `${ok} ${pct2(b)}%`, `${dead} ${pct2(b)}%`);
+      return `linear-gradient(to right, ${dead} 0%, ${stops.join(", ")}, ${dead} 100%)`;
+    }, [theta2Range, T]);
     const theta2Segments = theta2Range?.full ? null : theta2Range?.segments || null;
-    const theta2Window = theta2Segments && theta2Segments.length ? arcAt(theta2Segments, theta2) || home != null && arcAt(theta2Segments, home) || theta2Segments.reduce((a, b) => b.max - b.min > a.max - a.min ? b : a) : null;
-    const theta2Lifted = theta2Window ? theta2 + Math.round(((theta2Window.min + theta2Window.max) / 2 - theta2) / TAU2) * TAU2 : theta2;
-    const theta2Scrub = theta2Window ? theta2Window.max > theta2Window.min ? Math.max(0, Math.min(3600, 3600 * (theta2Lifted - theta2Window.min) / (theta2Window.max - theta2Window.min))) : 0 : Math.max(0, Math.min(3600, 3600 * theta2 / TAU2));
-    const scrubTheta2 = (tick) => {
-      if (!Number.isFinite(tick)) return;
+    const theta2Degrees = theta2 === TAU2 ? 360 : wrap(theta2) * 180 / Math.PI;
+    const theta2Scrub = theta2Degrees * 10;
+    const positionTheta2 = (raw) => {
+      if (!Number.isFinite(raw)) return;
       setPlaying(false);
-      const u = tick / 3600;
-      setTheta2(theta2Window ? wrap(theta2Window.min + u * (theta2Window.max - theta2Window.min)) : u * TAU2);
+      const wrapped = wrap(raw);
+      const t = raw >= 0 && raw <= TAU2 ? raw : raw > 0 && wrapped === 0 ? TAU2 : wrapped;
+      if (!theta2Segments) {
+        setTheta2(t);
+        return;
+      }
+      if (!theta2Segments.length) return;
+      const phase = t === TAU2 ? 0 : t;
+      if (theta2Segments.some((s) => phase >= s.min && phase <= s.max || phase + TAU2 >= s.min && phase + TAU2 <= s.max)) {
+        setTheta2(t);
+        return;
+      }
+      const gap = (end2) => Math.abs(wrap(end2 - phase + Math.PI) - Math.PI);
+      const end = theta2Segments.flatMap((s) => [s.min, s.max]).reduce((a, b) => gap(b) < gap(a) ? b : a);
+      setTheta2(wrap(end));
     };
+    const scrubTheta2 = (tick) => positionTheta2(tick / 3600 * TAU2);
     const toggleCache = useRef(null);
     const goToToggle = (direction) => {
       setPlaying(false);
@@ -41116,11 +41157,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         max: 3600,
         step: 1,
         value: theta2Scrub,
-        "aria-valuemin": theta2Window ? theta2Window.min * 180 / Math.PI : 0,
-        "aria-valuemax": theta2Window ? theta2Window.max * 180 / Math.PI : 360,
-        "aria-valuenow": theta2Lifted * 180 / Math.PI,
+        "aria-valuemin": 0,
+        "aria-valuemax": 360,
+        "aria-valuenow": theta2Degrees,
         "aria-label": "Crank angle \u03B8\u2082",
-        "aria-valuetext": `${fmtDeg(theta2, 1)} degrees`,
+        "aria-valuetext": `${theta2Degrees.toFixed(1)} degrees`,
         onChange: (e) => scrubTheta2(parseFloat(e.target.value)),
         style: { flex: 1, minWidth: 0, ...theta2TrackBg ? { background: theta2TrackBg } : {} },
         disabled: !activeResult.ok
@@ -41133,12 +41174,11 @@ referrerPolicy="no-referrer-when-downgrade"></a></div></noscript>
         title: "Type an exact crank angle, from the +x axis",
         "aria-label": "Crank angle \u03B8\u2082, degrees",
         className: "no-spin",
-        value: +fmtDeg(theta2, 2),
+        value: +theta2Degrees.toFixed(2),
         onChange: (e) => {
           const d = parseFloat(e.target.value);
           if (Number.isNaN(d)) return;
-          setPlaying(false);
-          setTheta2(wrap(d * Math.PI / 180));
+          positionTheta2(d * Math.PI / 180);
         },
         style: { ...S.val, width: 70, textAlign: "right" },
         disabled: !activeResult.ok
